@@ -44,6 +44,7 @@ const ADMIN_SECTIONS = {
   inventory: { title: 'Inventario', hint: 'Stock disponible por producto y ajustes manuales con trazabilidad.' },
   services: { title: 'Servicios', hint: 'Crea, edita y elimina los servicios publicados en el catálogo.' },
   products: { title: 'Productos', hint: 'Crea, edita y elimina los productos publicados en el catálogo.' },
+  categories: { title: 'Categorías', hint: 'Árbol de categorías del catálogo (ej. Motocicletas → Repuestos) — se pueden anidar unas dentro de otras.' },
   brands: { title: 'Marcas', hint: 'Fabricantes/marcas de los productos (ej. AKT, Bajaj) — lo más parecido a "proveedores" en un marketplace, donde no se le compra inventario a terceros para revender.' },
   suppliers: { title: 'Proveedores', hint: 'Agenda de a quién comprarle inventario — se puede vincular cada producto a su proveedor desde el formulario de Productos.' },
   'payment-methods': { title: 'Métodos de pago', hint: 'Actívalos o desactívalos sin tocar código — el checkout refleja el cambio al instante.' },
@@ -75,7 +76,7 @@ function wireSidebar() {
       link.classList.add('is-active');
 
       const tab = link.dataset.tab;
-      ['dashboard', 'orders', 'reservations', 'customers', 'inventory', 'services', 'products', 'brands', 'suppliers', 'payment-methods', 'coupons', 'settings'].forEach((name) => {
+      ['dashboard', 'orders', 'reservations', 'customers', 'inventory', 'services', 'products', 'categories', 'brands', 'suppliers', 'payment-methods', 'coupons', 'settings'].forEach((name) => {
         const section = document.getElementById(`admin-tab-${name}`);
         section.hidden = name !== tab;
         if (name === tab) {
@@ -513,6 +514,14 @@ function resetServiceForm() {
   document.getElementById('service-form-error').textContent = '';
 }
 
+// Ubicación del local (CRA 20 #17-35, Manizales) — mismo valor que el
+// "value" por defecto de #service-latitude/#service-longitude en admin.html
+// (eso cubre "Nuevo servicio"). Acá cubre "Editar servicio": si el servicio
+// todavía no tiene coordenada propia cargada, se le asigna esta por defecto
+// en vez de dejarla vacía, para no depender de "Usar mi ubicación actual".
+const DEFAULT_SERVICE_LATITUDE = '5.0691798';
+const DEFAULT_SERVICE_LONGITUDE = '-75.5206221';
+
 /** @param {string|null} slug - null para crear, slug del servicio para editar. */
 async function openServiceForm(slug) {
   resetServiceForm();
@@ -531,8 +540,8 @@ async function openServiceForm(slug) {
     document.getElementById('service-price').value = service.price;
     document.getElementById('service-duration').value = service.duration_minutes || '';
     document.getElementById('service-location').value = service.location || '';
-    document.getElementById('service-latitude').value = service.latitude ?? '';
-    document.getElementById('service-longitude').value = service.longitude ?? '';
+    document.getElementById('service-latitude').value = service.latitude ?? DEFAULT_SERVICE_LATITUDE;
+    document.getElementById('service-longitude').value = service.longitude ?? DEFAULT_SERVICE_LONGITUDE;
     document.getElementById('service-description').value = service.description || '';
     document.getElementById('service-description-en').value = service.description_en || '';
     document.getElementById('service-cancellation').value = service.cancellation_policy || '';
@@ -942,6 +951,140 @@ function wireProductManagement() {
  * marketplace como este: no se compra inventario a terceros para revenderlo,
  * cada producto ya viene con su marca/fabricante real (ej. AKT, Bajaj).
  */
+/**
+ * CRUD de categorías (permiso manage-categories) — hasta ahora solo se
+ * gestionaban por seeder (backend/database/seeders/005_categories_seeder.php),
+ * sin ninguna pantalla en el admin. El árbol viene anidado (children[], ver
+ * catalogService.categories()); se aplana con su profundidad para mostrarlo
+ * indentado en la tabla y en el selector de "categoría padre" del formulario.
+ */
+let categoriesFlatCache = [];
+
+function flattenCategoriesWithDepth(tree, depth = 0) {
+  return tree.reduce(
+    (flat, node) => flat.concat([{ ...node, depth }], flattenCategoriesWithDepth(node.children || [], depth + 1)),
+    []
+  );
+}
+
+async function loadCategoriesAdmin() {
+  const body = document.getElementById('categories-table-body');
+  const errorBox = document.getElementById('categories-error');
+  errorBox.textContent = '';
+
+  try {
+    const tree = await catalogService.categories();
+    categoriesFlatCache = flattenCategoriesWithDepth(tree);
+
+    if (categoriesFlatCache.length === 0) {
+      body.innerHTML = '<tr><td colspan="4">Todavía no hay categorías creadas.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = categoriesFlatCache.map((cat) => `
+      <tr data-category-id="${cat.id}">
+        <td>${'— '.repeat(cat.depth)}${helpers.escapeHtml(cat.name)}</td>
+        <td><span class="status-badge ${cat.status === 'active' ? 'is-final-good' : ''}">${cat.status === 'active' ? 'Activa' : 'Inactiva'}</span></td>
+        <td>${cat.sort_order}</td>
+        <td>
+          <div class="flex gap-8">
+            <button class="btn btn-secondary" data-action="edit-category">Editar</button>
+            <button class="btn btn-secondary" data-action="delete-category">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    body.querySelectorAll('[data-action="edit-category"]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const category = categoriesFlatCache.find((c) => c.id === Number(button.closest('tr').dataset.categoryId));
+        openCategoryForm(category);
+      });
+    });
+
+    body.querySelectorAll('[data-action="delete-category"]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const id = button.closest('tr').dataset.categoryId;
+        if (!window.confirm('¿Eliminar esta categoría? Sus subcategorías (si tiene) y los productos/servicios que la usan quedarán sin esa categoría asignada.')) return;
+
+        try {
+          await catalogService.deleteCategory(id);
+          helpers.toast('Categoría eliminada.', 'success');
+          loadCategoriesAdmin();
+        } catch (error) {
+          helpers.toast(error.message, 'error');
+        }
+      });
+    });
+  } catch (error) {
+    handleAdminError(error, errorBox);
+  }
+}
+
+/** Excluye la propia categoría (si se está editando) de su propio selector de padre —
+ * ciclos más profundos (ej. elegir a un nieto como padre) los rechaza igual el backend
+ * (CategoryRepositoryInterface::wouldCreateCycle), esto es solo la ayuda obvia en UI. */
+function populateCategoryParentSelect(excludeId) {
+  const select = document.getElementById('category-parent');
+  const options = categoriesFlatCache.filter((c) => c.id !== excludeId);
+  select.innerHTML = '<option value="">Sin categoría padre (raíz)</option>' +
+    options.map((c) => `<option value="${c.id}">${'— '.repeat(c.depth)}${helpers.escapeHtml(c.name)}</option>`).join('');
+}
+
+function openCategoryForm(category) {
+  document.getElementById('category-form').reset();
+  document.getElementById('category-form-error').textContent = '';
+  document.getElementById('category-id').value = category ? category.id : '';
+  document.getElementById('category-name').value = category ? category.name : '';
+  populateCategoryParentSelect(category ? category.id : null);
+  document.getElementById('category-parent').value = category && category.parent_id ? category.parent_id : '';
+  document.getElementById('category-status').value = category ? category.status : 'active';
+  document.getElementById('category-sort-order').value = category ? category.sort_order : 0;
+  document.getElementById('category-modal-title').textContent = category ? 'Editar categoría' : 'Nueva categoría';
+  document.getElementById('category-submit-btn').textContent = category ? 'Guardar cambios' : 'Crear categoría';
+  document.getElementById('category-modal-overlay').classList.add('is-open');
+}
+
+function wireCategoryManagement() {
+  document.getElementById('new-category-btn').addEventListener('click', () => openCategoryForm(null));
+  document.getElementById('category-modal-close').addEventListener('click', () => {
+    document.getElementById('category-modal-overlay').classList.remove('is-open');
+  });
+  document.getElementById('category-modal-overlay').addEventListener('click', (event) => {
+    if (event.target === document.getElementById('category-modal-overlay')) {
+      document.getElementById('category-modal-overlay').classList.remove('is-open');
+    }
+  });
+
+  document.getElementById('category-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorBox = document.getElementById('category-form-error');
+    errorBox.textContent = '';
+
+    const id = document.getElementById('category-id').value;
+    const payload = {
+      name: document.getElementById('category-name').value.trim(),
+      parent_id: document.getElementById('category-parent').value || undefined,
+      status: document.getElementById('category-status').value,
+      sort_order: document.getElementById('category-sort-order').value || 0,
+    };
+
+    try {
+      if (id) {
+        await catalogService.updateCategory(id, payload);
+        helpers.toast('Categoría actualizada.', 'success');
+      } else {
+        await catalogService.createCategory(payload);
+        helpers.toast('Categoría creada.', 'success');
+      }
+      document.getElementById('category-modal-overlay').classList.remove('is-open');
+      loadCategoriesAdmin();
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+}
+
 async function loadBrands() {
   const body = document.getElementById('brands-table-body');
   const errorBox = document.getElementById('brands-error');
@@ -1442,6 +1585,37 @@ function handleAdminError(error, errorBox) {
   errorBox.textContent = error.message;
 }
 
+/**
+ * Traducción automática ES → EN (sección nueva): al salir del campo en
+ * español, si el campo "_en" correspondiente todavía está vacío, se
+ * completa solo con la traducción (adminService.translate, mismo proveedor
+ * de IA del asistente — AI_PROVIDER/AI_API_KEY en backend/.env). Nunca pisa
+ * una traducción que el admin ya haya escrito a mano — solo actúa si el
+ * campo destino sigue vacío. Si no hay proveedor de IA configurado, o la
+ * llamada falla, no bloquea el formulario: el campo se sigue completando a
+ * mano, como siempre ("vacío = fallback al texto en español" en el sitio).
+ */
+function wireAutoTranslate(sourceId, targetId) {
+  const source = document.getElementById(sourceId);
+  const target = document.getElementById(targetId);
+  if (!source || !target) return;
+
+  source.addEventListener('blur', async () => {
+    const text = source.value.trim();
+    if (!text || target.value.trim()) return;
+
+    target.disabled = true;
+    try {
+      const { translated } = await adminService.translate(text);
+      if (translated && !target.value.trim()) target.value = translated;
+    } catch (error) {
+      // Silencioso a propósito — ver comentario de arriba.
+    } finally {
+      target.disabled = false;
+    }
+  });
+}
+
 async function initAdminPage() {
   if (!authService.isAuthenticated()) {
     document.querySelector('main').innerHTML = '<p class="error-state mt-16">Inicia sesión con una cuenta con permisos administrativos.</p>';
@@ -1451,6 +1625,11 @@ async function initAdminPage() {
   wireSidebar();
   wireServiceManagement();
   wireProductManagement();
+  wireAutoTranslate('service-name', 'service-name-en');
+  wireAutoTranslate('service-description', 'service-description-en');
+  wireAutoTranslate('product-name', 'product-name-en');
+  wireAutoTranslate('product-short-description', 'product-short-description-en');
+  wireCategoryManagement();
   wireBrandManagement();
   wireSupplierManagement();
   wirePaymentMethodManagement();
@@ -1481,11 +1660,13 @@ async function initAdminPage() {
   loadServices();
   populateProductSelects();
   loadProductsAdmin();
+  loadCategoriesAdmin();
   loadBrands();
   loadSuppliers();
   loadPaymentMethods();
   loadCoupons();
   loadSettingsTerms();
+  loadSettingsLogo();
   wireSettingsForm();
 }
 
@@ -1504,6 +1685,18 @@ async function loadSettingsTerms() {
   }
 }
 
+/** Logo del sitio: muestra el actual (o el estático de siempre si nunca se subió ninguno). */
+async function loadSettingsLogo() {
+  try {
+    const settings = await settingsService.get();
+    if (settings.site_logo) {
+      document.getElementById('settings-logo-preview').src = helpers.mediaUrl('settings', settings.site_logo);
+    }
+  } catch (error) {
+    // Sigue mostrando el logo estático por defecto — no es bloqueante.
+  }
+}
+
 function wireSettingsForm() {
   document.getElementById('settings-terms-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1515,6 +1708,25 @@ function wireSettingsForm() {
       helpers.toast('Términos y condiciones actualizados.', 'success');
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('settings-logo-input').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const errorBox = document.getElementById('settings-logo-error');
+    errorBox.textContent = '';
+
+    try {
+      const { site_logo } = await adminService.uploadLogo(file);
+      document.getElementById('settings-logo-preview').src = helpers.mediaUrl('settings', site_logo);
+      settingsService._cache = null; // el header (layout.js) vuelve a pedirlo en la próxima carga de página
+      helpers.toast('Logo actualizado. Se va a ver en el resto del sitio al recargar la página.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    } finally {
+      event.target.value = '';
     }
   });
 }

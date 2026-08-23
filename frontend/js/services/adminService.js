@@ -36,8 +36,16 @@ const adminService = {
   updateCoupon: (id, payload) => apiService.put(`/admin/coupons/${id}`, payload),
   deleteCoupon: (id) => apiService.del(`/admin/coupons/${id}`),
 
-  // Configuración general del sitio — hoy solo términos y condiciones (permiso manage-settings).
+  // Configuración general del sitio (permiso manage-settings).
   updateTerms: (content) => apiService.put('/admin/settings/terms', { content }),
+  uploadLogo: (file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return apiService.post('/admin/settings/logo', formData, { isFormData: true });
+  },
+
+  // Traducción ES → EN para los campos "_en" de productos/servicios (botón "Traducir").
+  translate: (text) => apiService.post('/admin/translate', { text }),
 
   // Proveedores (agenda interna, no pública — a diferencia de brands/marcas).
   suppliers: (filters = {}) => apiService.get('/admin/suppliers' + catalogService.toQueryString(filters)),

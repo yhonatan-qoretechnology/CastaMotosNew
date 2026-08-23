@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Controllers;
 
+use App\Application\UseCases\Settings\UploadSiteLogoUseCase;
+use App\Exceptions\ValidationException;
 use App\Infrastructure\Config\Config;
 use App\Infrastructure\Database\Connection;
 use App\Infrastructure\Http\Request;
@@ -21,8 +23,14 @@ final class SettingsController
 {
     public function publicSettings(Request $request): void
     {
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+
         Response::success([
             'contact_whatsapp_number' => (string) Config::get('app.contact.whatsapp_number', ''),
+            // Solo el nombre de archivo (igual que products.primary_image) — el
+            // frontend arma la URL con helpers.mediaUrl('settings', ...). Null =
+            // todavía no se subió ninguno, el frontend cae al logo estático.
+            'site_logo' => $settings->get('site_logo'),
         ]);
     }
 
@@ -46,5 +54,21 @@ final class SettingsController
         $settings->set('terms_and_conditions', $data['content']);
 
         Response::success(null, 'Términos y condiciones actualizados.');
+    }
+
+    /** Logo del sitio (permiso manage-settings) — reemplaza el que hubiera. */
+    public function uploadLogo(Request $request): void
+    {
+        $file = $request->file('logo');
+        if ($file === null) {
+            throw new ValidationException('No fue posible subir el logo.', [
+                'logo' => ['Debes adjuntar un archivo con el campo "logo".'],
+            ]);
+        }
+
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+        $filename = (new UploadSiteLogoUseCase($settings))->handle($file);
+
+        Response::success(['site_logo' => $filename], 'Logo actualizado correctamente.');
     }
 }

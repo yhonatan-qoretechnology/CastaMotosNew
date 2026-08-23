@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260822c">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260822g">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260822c"></script>
+<script src="frontend/js/theme-init.js?v=20260822g"></script>
 </head>
 <body>
 
@@ -41,6 +41,7 @@
       <button class="admin-nav-link" data-tab="inventory"><span>📊</span> Inventario</button>
       <button class="admin-nav-link" data-tab="services"><span>🔧</span> Servicios</button>
       <button class="admin-nav-link" data-tab="products"><span>🏍️</span> Productos</button>
+      <button class="admin-nav-link" data-tab="categories"><span>🗂️</span> Categorías</button>
       <button class="admin-nav-link" data-tab="brands"><span>🏷️</span> Marcas</button>
       <button class="admin-nav-link" data-tab="suppliers"><span>🚚</span> Proveedores</button>
       <button class="admin-nav-link" data-tab="payment-methods"><span>💳</span> Métodos de pago</button>
@@ -201,6 +202,23 @@
     <div id="products-error" class="form-error mt-16"></div>
   </section>
 
+  <section id="admin-tab-categories" hidden>
+    <div class="filters-bar">
+      <button class="btn btn-primary" type="button" id="new-category-btn">+ Nueva categoría</button>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr><th>Categoría</th><th>Estado</th><th>Orden</th><th></th></tr>
+        </thead>
+        <tbody id="categories-table-body">
+          <tr><td colspan="4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="categories-error" class="form-error mt-16"></div>
+  </section>
+
   <section id="admin-tab-brands" hidden>
     <div class="filters-bar">
       <button class="btn btn-primary" type="button" id="new-brand-btn">+ Nueva marca</button>
@@ -270,7 +288,19 @@
   </section>
 
   <section id="admin-tab-settings" hidden>
-    <p style="color:var(--gris-texto);font-size:0.85rem;margin-top:0;">
+    <div class="form-group">
+      <label>Logo del sitio</label>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <img id="settings-logo-preview" src="frontend/assets/img/logo.png" alt="Logo actual" style="width:72px;height:72px;object-fit:contain;background:var(--gris-oscuro);border:1px solid var(--gris-borde);border-radius:var(--radio-sm);padding:6px;">
+        <div>
+          <input type="file" id="settings-logo-input" accept="image/jpeg,image/png,image/webp">
+          <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">Se usa en el encabezado de todas las páginas. JPG, PNG o WEBP, hasta 2 MB.</p>
+        </div>
+      </div>
+      <div class="form-error" id="settings-logo-error"></div>
+    </div>
+
+    <p style="color:var(--gris-texto);font-size:0.85rem;">
       Este texto es el que ven los clientes en /terminos y al aceptar en el registro. Podés editarlo cuando quieras — se guarda en la base de datos, no hace falta subir código.
     </p>
     <form id="settings-terms-form">
@@ -494,6 +524,41 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="category-modal-overlay">
+  <div class="modal">
+    <div class="modal__header">
+      <h2 class="modal__title" id="category-modal-title">Nueva categoría</h2>
+      <button class="modal__close" type="button" id="category-modal-close" aria-label="Cerrar">✕</button>
+    </div>
+    <form id="category-form">
+      <input type="hidden" id="category-id">
+      <div class="form-group">
+        <label for="category-name">Nombre</label>
+        <input class="form-control" id="category-name" required>
+      </div>
+      <div class="form-group">
+        <label for="category-parent">Categoría padre (opcional)</label>
+        <select class="form-control" id="category-parent"><option value="">Sin categoría padre (raíz)</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="category-status">Estado</label>
+          <select class="form-control" id="category-status">
+            <option value="active">Activa</option>
+            <option value="inactive">Inactiva</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="category-sort-order">Orden (menor = primero)</label>
+          <input class="form-control" type="number" step="1" id="category-sort-order" value="0">
+        </div>
+      </div>
+      <div class="form-error" id="category-form-error"></div>
+      <button class="btn btn-primary btn-block" type="submit" id="category-submit-btn">Crear categoría</button>
+    </form>
+  </div>
+</div>
+
 <div class="modal-overlay" id="brand-modal-overlay">
   <div class="modal">
     <div class="modal__header">
@@ -651,18 +716,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260822c"></script>
-<script src="frontend/js/utils/helpers.js?v=20260822c"></script>
-<script src="frontend/js/services/apiService.js?v=20260822c"></script>
-<script src="frontend/js/services/authService.js?v=20260822c"></script>
-<script src="frontend/js/services/catalogService.js?v=20260822c"></script>
-<script src="frontend/js/services/cartService.js?v=20260822c"></script>
-<script src="frontend/js/services/adminService.js?v=20260822c"></script>
-<script src="frontend/js/services/themeService.js?v=20260822c"></script>
-<script src="frontend/js/services/settingsService.js?v=20260822c"></script>
-<script src="frontend/js/services/notificationService.js?v=20260822c"></script>
-<script src="frontend/js/components/layout.js?v=20260822c"></script>
-<script src="frontend/js/components/charts.js?v=20260822c"></script>
-<script src="frontend/js/pages/admin.js?v=20260822c"></script>
+<script src="frontend/js/i18n.js?v=20260822g"></script>
+<script src="frontend/js/utils/helpers.js?v=20260822g"></script>
+<script src="frontend/js/services/apiService.js?v=20260822g"></script>
+<script src="frontend/js/services/authService.js?v=20260822g"></script>
+<script src="frontend/js/services/catalogService.js?v=20260822g"></script>
+<script src="frontend/js/services/cartService.js?v=20260822g"></script>
+<script src="frontend/js/services/adminService.js?v=20260822g"></script>
+<script src="frontend/js/services/themeService.js?v=20260822g"></script>
+<script src="frontend/js/services/settingsService.js?v=20260822g"></script>
+<script src="frontend/js/services/notificationService.js?v=20260822g"></script>
+<script src="frontend/js/components/layout.js?v=20260822g"></script>
+<script src="frontend/js/components/charts.js?v=20260822g"></script>
+<script src="frontend/js/pages/admin.js?v=20260822g"></script>
 </body>
 </html>

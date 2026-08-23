@@ -10,6 +10,9 @@ function toQueryString(params = {}) {
 
 const catalogService = {
   categories: () => apiService.get('/categories'),
+  createCategory: (payload) => apiService.post('/categories', payload),
+  updateCategory: (id, payload) => apiService.put(`/categories/${id}`, payload),
+  deleteCategory: (id) => apiService.del(`/categories/${id}`),
   brands: () => apiService.get('/brands'),
   createBrand: (payload) => apiService.post('/brands', payload),
   updateBrand: (id, payload) => apiService.put(`/brands/${id}`, payload),

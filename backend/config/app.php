@@ -80,6 +80,12 @@ return [
         'catalog_image_allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
         // Máximo de fotos por producto/servicio (compartido entre los dos catálogos).
         'max_images_per_catalog_item' => (int) ($_ENV['MAX_IMAGES_PER_CATALOG_ITEM'] ?? 6),
+
+        // Logo del sitio (sección nueva, /admin → Configuración) — mismo criterio
+        // que avatar/catálogo: sin SVG (riesgo XSS, ver MediaController).
+        'logo_max_size_kb' => (int) ($_ENV['LOGO_MAX_SIZE_KB'] ?? 2048),
+        'logo_allowed_mimes' => ['image/jpeg', 'image/png', 'image/webp'],
+        'logo_allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
     ],
 
     'admin' => [

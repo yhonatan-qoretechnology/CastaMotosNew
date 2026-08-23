@@ -16,12 +16,17 @@ function renderHeaderShell() {
   if (!mount) return;
 
   const user = authService.currentUser();
+  // settingsService.get() ya se esperó en initLayout() antes de llamar acá,
+  // así que la caché en memoria ya está lista — sin eso, "site_logo" cae
+  // silenciosamente al logo estático de siempre (ver settingsService.get()).
+  const siteLogo = settingsService._cache?.site_logo;
+  const logoSrc = siteLogo ? helpers.mediaUrl('settings', siteLogo) : 'frontend/assets/img/logo.png';
 
   mount.innerHTML = `
     <header class="site-header">
       <div class="container site-header__bar">
         <a href="." class="site-header__logo">
-          <img src="frontend/assets/img/logo.png" alt="CASTAMOTO">
+          <img src="${logoSrc}" alt="CASTAMOTO">
           <span>CASTAMOTO</span>
         </a>
         <div class="site-header__search">
@@ -688,6 +693,14 @@ function renderAssistantWidget() {
   });
 }
 
+/** Favicon dinámico: si hay logo propio subido (/admin → Configuración),
+ * reemplaza el <link rel="icon"> estático de cada página por ese archivo. */
+function applySiteFavicon(siteLogo) {
+  if (!siteLogo) return;
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) link.href = helpers.mediaUrl('settings', siteLogo);
+}
+
 async function initLayout() {
   // Si hay token guardado, se refresca el usuario contra el backend ANTES de
   // pintar el header: así el link "Admin" (y el nombre mostrado) siempre
@@ -695,6 +708,12 @@ async function initLayout() {
   if (authService.isAuthenticated()) {
     await authService.refreshUser();
   }
+
+  // Se espera ANTES de pintar el header: así el logo (si hay uno propio
+  // subido) sale bien desde el primer render, sin parpadeo por cambiarlo
+  // después de mostrar el estático.
+  const settings = await settingsService.get();
+  applySiteFavicon(settings.site_logo);
 
   renderHeaderShell();
   initAuthModalEvents();

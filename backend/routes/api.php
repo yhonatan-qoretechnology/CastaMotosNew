@@ -30,6 +30,7 @@ use App\Presentation\Controllers\ReviewController;
 use App\Presentation\Controllers\SearchController;
 use App\Presentation\Controllers\ServiceController;
 use App\Presentation\Controllers\SettingsController;
+use App\Presentation\Controllers\TranslateController;
 use App\Presentation\Middleware\AuthMiddleware;
 use App\Presentation\Middleware\OptionalAuthMiddleware;
 use App\Presentation\Middleware\RequirePermissionMiddleware;
@@ -45,6 +46,7 @@ $router->get('api/health', [HealthController::class, 'index']);
 $router->get('api/settings/public', [SettingsController::class, 'publicSettings']);
 $router->get('api/settings/terms', [SettingsController::class, 'terms']);
 $router->put('api/admin/settings/terms', [SettingsController::class, 'updateTerms'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
+$router->post('api/admin/settings/logo', [SettingsController::class, 'uploadLogo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 
 // --- Asistente de preguntas (Fase 11) — funciona para invitados ---
 $router->post('api/assistant/ask', [AssistantController::class, 'ask'], [new OptionalAuthMiddleware()]);
@@ -105,6 +107,10 @@ $router->delete('api/products/{id}/images/{imageId}', [ProductController::class,
 $router->put('api/products/{id}/images/{imageId}/primary', [ProductController::class, 'setPrimaryImage'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
 $router->put('api/products/{id}/variants', [ProductController::class, 'syncVariants'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
 $router->put('api/products/{id}/attributes', [ProductController::class, 'syncAttributes'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
+// Traducción ES → EN para los campos "_en" del admin (productos y servicios,
+// ver TranslateController) — manage-products alcanza para las dos pantallas
+// porque los mismos roles siempre tienen manage-products y manage-services juntos.
+$router->post('api/admin/translate', [TranslateController::class, 'translate'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
 
 // --- Servicios (Fase 3 / sección 12) ---
 $router->get('api/services', [ServiceController::class, 'index'], [new OptionalAuthMiddleware()]);
@@ -175,3 +181,4 @@ $router->post('api/admin/inventory/{productId}/adjust', [AdminInventoryControlle
 $router->get('api/media/avatars/{filename}', [MediaController::class, 'avatar']);
 $router->get('api/media/products/{filename}', [MediaController::class, 'productImage']);
 $router->get('api/media/services/{filename}', [MediaController::class, 'serviceImage']);
+$router->get('api/media/settings/{filename}', [MediaController::class, 'siteLogo']);
