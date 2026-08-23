@@ -39,6 +39,7 @@ final class ServiceController
         'category_id' => 'integer',
         'price' => 'required|numeric|gte:0',
         'duration_minutes' => 'integer|gte:0',
+        'requires_scheduling' => 'boolean',
         'location' => 'max:255',
         'latitude' => 'numeric',
         'longitude' => 'numeric',

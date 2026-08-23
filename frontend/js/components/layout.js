@@ -267,7 +267,7 @@ async function loadCategoryNav() {
     // home.js) — panel chico y horizontal, no una lista vertical larga.
     const chips = categories.flatMap((cat) => (cat.children && cat.children.length > 0 ? cat.children : [cat]));
     menu.innerHTML = chips.map((cat) =>
-      `<a href="categoria/${encodeURIComponent(cat.slug)}">${helpers.escapeHtml(cat.name)}</a>`
+      `<a href="${helpers.categoryHref(cat)}">${helpers.escapeHtml(cat.name)}</a>`
     ).join('');
   } catch (error) {
     // La navegación de categorías es un "nice to have": si falla, el resto de la página sigue funcionando.
@@ -338,6 +338,11 @@ function authModalMarkup() {
           <h2 class="modal__title" id="auth-modal-title">${i18nService.t('auth.login.title')}</h2>
           <button class="modal__close" id="auth-modal-close" aria-label="${i18nService.t('auth.close')}">✕</button>
         </div>
+        <div id="google-signin-section" hidden>
+          <div id="google-signin-container" style="display:flex;justify-content:center;margin-bottom:14px;"></div>
+          <div class="auth-divider"><span>${i18nService.t('auth.orDivider')}</span></div>
+        </div>
+
         <div class="modal__tabs">
           <button class="modal__tab is-active" data-tab="login">${i18nService.t('auth.login.title')}</button>
           <button class="modal__tab" data-tab="register">${i18nService.t('auth.register.title')}</button>
@@ -459,6 +464,56 @@ function closeTermsModal() {
   document.getElementById('terms-modal-overlay').classList.remove('is-open');
 }
 
+/** Mismo destino post-login que ya usaba el form de email/contraseña (sección 28):
+ * el admin entra directo al panel, cualquier otro usuario vuelve a la página que
+ * estaba mirando. Compartido entre login y "Continuar con Google". */
+function redirectAfterLogin(user) {
+  if (isAdminUser(user) && !window.location.pathname.replace(/\/$/, '').endsWith('/admin')) {
+    window.location.href = 'admin';
+  } else {
+    window.location.reload();
+  }
+}
+
+/**
+ * "Continuar con Google" (Google Identity Services): el botón real lo
+ * dibuja la librería de Google adentro de #google-signin-container — acá
+ * solo se la inicializa (si hay Client ID configurado, ver settingsService)
+ * y se conecta su resultado (un ID token) con el backend (auth/google).
+ * Si GIS todavía no cargó (script async) se reintenta un rato antes de
+ * rendirse en silencio — nunca bloquea el resto del modal.
+ */
+function initGoogleSignIn() {
+  const clientId = settingsService._cache?.google_client_id;
+  if (!clientId) return; // no configurado (ver GOOGLE_CLIENT_ID en backend/.env) — el botón no se muestra
+
+  const section = document.getElementById('google-signin-section');
+  const container = document.getElementById('google-signin-container');
+
+  const tryInit = (attemptsLeft) => {
+    if (!window.google?.accounts?.id) {
+      if (attemptsLeft > 0) setTimeout(() => tryInit(attemptsLeft - 1), 200);
+      return;
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async (response) => {
+        try {
+          const data = await authService.loginWithGoogle(response.credential);
+          redirectAfterLogin(data.user);
+        } catch (error) {
+          helpers.toast(error.message, 'error');
+        }
+      },
+    });
+    window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 320, text: 'continue_with' });
+    section.hidden = false;
+  };
+
+  tryInit(25); // ~5s de margen (script async) antes de desistir
+}
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.modal__tab').forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
   document.getElementById('login-form').hidden = tab !== 'login';
@@ -472,6 +527,8 @@ function initAuthModalEvents() {
 
   document.getElementById('auth-modal-close').addEventListener('click', closeAuthModal);
   overlay.addEventListener('click', (event) => { if (event.target === overlay) closeAuthModal(); });
+
+  initGoogleSignIn();
 
   document.getElementById('register-terms-link').addEventListener('click', (event) => {
     event.preventDefault();
@@ -495,13 +552,7 @@ function initAuthModalEvents() {
         document.getElementById('login-email').value,
         document.getElementById('login-password').value
       );
-      // El admin entra directo al panel (sección 28): no tiene sentido que
-      // inicie sesión y vuelva a ver la página pública que estaba mirando.
-      if (isAdminUser(data.user) && !window.location.pathname.replace(/\/$/, '').endsWith('/admin')) {
-        window.location.href = 'admin';
-      } else {
-        window.location.reload();
-      }
+      redirectAfterLogin(data.user);
     } catch (error) {
       errorBox.textContent = error.message;
     }

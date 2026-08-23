@@ -56,6 +56,7 @@ $router->delete('api/notifications/subscribe', [PushSubscriptionController::clas
 // --- Autenticación (Fase 2) ---
 $router->post('api/auth/register', [AuthController::class, 'register']);
 $router->post('api/auth/login', [AuthController::class, 'login']);
+$router->post('api/auth/google', [AuthController::class, 'google']);
 $router->get('api/auth/verify-email', [AuthController::class, 'verifyEmail']);
 $router->post('api/auth/resend-verification', [AuthController::class, 'resendVerification']);
 $router->post('api/auth/forgot-password', [AuthController::class, 'forgotPassword']);

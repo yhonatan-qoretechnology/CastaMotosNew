@@ -1656,6 +1656,22 @@ textarea {
   gap: 8px;
   margin-bottom: 16px;
 }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: var(--gris-texto);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--gris-borde);
+}
 .modal__tab {
   flex: 1;
   background: var(--negro-suave);

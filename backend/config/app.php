@@ -30,6 +30,12 @@ return [
         'remember_ttl_days' => (int) ($_ENV['AUTH_REMEMBER_TTL_DAYS'] ?? 30),
         'email_verification_ttl_hours' => (int) ($_ENV['EMAIL_VERIFICATION_TTL_HOURS'] ?? 24),
         'password_reset_ttl_minutes' => (int) ($_ENV['PASSWORD_RESET_TTL_MINUTES'] ?? 60),
+        // "Continuar con Google" (sección nueva): GOOGLE_CLIENT_ID es público a
+        // propósito (se expone vía /api/settings/public para armar el botón en
+        // el frontend) — a diferencia de un API key, un OAuth Client ID no es
+        // secreto, Google lo espera visible en el navegador. Vacío = el botón
+        // no se muestra (mismo criterio honesto que AiProviderFactory).
+        'google_client_id' => $_ENV['GOOGLE_CLIENT_ID'] ?? '',
     ],
 
     'mail' => [

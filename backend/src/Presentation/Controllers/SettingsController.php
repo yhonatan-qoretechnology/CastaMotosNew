@@ -31,6 +31,9 @@ final class SettingsController
             // frontend arma la URL con helpers.mediaUrl('settings', ...). Null =
             // todavía no se subió ninguno, el frontend cae al logo estático.
             'site_logo' => $settings->get('site_logo'),
+            // Público a propósito (ver GOOGLE_CLIENT_ID en config/app.php) —
+            // vacío = el botón "Continuar con Google" no se muestra.
+            'google_client_id' => (string) Config::get('app.auth.google_client_id', ''),
         ]);
     }
 

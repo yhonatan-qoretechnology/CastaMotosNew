@@ -48,6 +48,13 @@ const authService = {
     return data;
   },
 
+  /** "Continuar con Google": credential = el ID token que entrega Google Identity Services. */
+  async loginWithGoogle(credential) {
+    const data = await apiService.post('/auth/google', { credential });
+    this.persistSession(data);
+    return data;
+  },
+
   /** Sección "recuperar contraseña": el backend responde igual exista o no el correo (evita enumeración de usuarios). */
   async forgotPassword(email) {
     await apiService.post('/auth/forgot-password', { email });

@@ -25,7 +25,7 @@ async function loadHomeCategories() {
     // es perfecto sin ningún salto ni parpadeo. Se pausa al pasar el mouse
     // (o con foco de teclado) para poder leer/hacer click sin que se mueva.
     const chipMarkup = (cat) => `
-      <a class="card category-chip" href="categoria/${encodeURIComponent(cat.slug)}">
+      <a class="card category-chip" href="${helpers.categoryHref(cat)}">
         <div class="card__body text-center">
           <span class="card__icon">${helpers.categoryIcon(cat.slug)}</span>
           <span class="card__name">${helpers.escapeHtml(helpers.localized(cat, 'name'))}</span>

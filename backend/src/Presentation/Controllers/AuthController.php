@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Controllers;
 
 use App\Application\UseCases\Auth\ChangePasswordUseCase;
+use App\Application\UseCases\Auth\GoogleAuthUseCase;
 use App\Application\UseCases\Auth\LoginUseCase;
 use App\Application\UseCases\Auth\RegisterUserUseCase;
 use App\Application\UseCases\Auth\RequestPasswordResetUseCase;
@@ -74,6 +75,32 @@ final class AuthController
         );
 
         // Carrito de invitado → carrito del usuario (sección 18), si venía uno.
+        $cartToken = (string) $request->header('X-Cart-Token', '');
+        if ($cartToken !== '') {
+            $this->carts->mergeGuestCartIntoUser($result['user']->id, $cartToken);
+        }
+
+        Response::success([
+            'user' => $result['user']->toArray(),
+            'token' => $result['token'],
+        ], 'Sesión iniciada correctamente.');
+    }
+
+    /** "Continuar con Google" — un solo endpoint cubre login y registro (ver GoogleAuthUseCase). */
+    public function google(Request $request): void
+    {
+        $data = Validator::make($request->input(), [
+            'credential' => 'required',
+        ])->validate();
+
+        $useCase = new GoogleAuthUseCase($this->users, $this->loginHistory);
+        $result = $useCase->handle(
+            $data['credential'],
+            $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+            $_SERVER['HTTP_USER_AGENT'] ?? ''
+        );
+
+        // Mismo tratamiento de carrito de invitado que login() (sección 18).
         $cartToken = (string) $request->header('X-Cart-Token', '');
         if ($cartToken !== '') {
             $this->carts->mergeGuestCartIntoUser($result['user']->id, $cartToken);

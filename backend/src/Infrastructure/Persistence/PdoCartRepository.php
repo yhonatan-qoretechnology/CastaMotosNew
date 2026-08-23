@@ -83,6 +83,7 @@ final class PdoCartRepository implements CartRepositoryInterface
                     (SELECT url FROM product_images pi WHERE pi.product_id = p.id
                         ORDER BY pi.is_primary DESC, pi.sort_order ASC LIMIT 1) AS product_image,
                     s.name AS service_name, s.slug AS service_slug, s.price AS service_price, s.status AS service_status,
+                    s.requires_scheduling AS service_requires_scheduling,
                     (SELECT url FROM service_images si WHERE si.service_id = s.id ORDER BY si.sort_order ASC LIMIT 1) AS service_image
              FROM cart_items ci
              LEFT JOIN products p ON p.id = ci.product_id AND p.deleted_at IS NULL
@@ -124,6 +125,9 @@ final class PdoCartRepository implements CartRepositoryInterface
             'quantity_exceeds_stock' => $availableStock !== null && $quantity > $availableStock,
             // Solo aplica a servicios (sección 12: reservas) — siempre null en productos.
             'scheduled_at' => $row['scheduled_at'] ?? null,
+            // Solo aplica a servicios — true en productos (nunca se usa ahí, ver
+            // assertItemsAreCheckoutable en CheckoutUseCase, que solo mira esto para type==='service').
+            'requires_scheduling' => $isProduct ? true : (int) ($row['service_requires_scheduling'] ?? 1) === 1,
         ];
     }
 

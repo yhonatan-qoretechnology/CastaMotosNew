@@ -539,6 +539,7 @@ async function openServiceForm(slug) {
     document.getElementById('service-category').value = service.category_id || '';
     document.getElementById('service-price').value = service.price;
     document.getElementById('service-duration').value = service.duration_minutes || '';
+    document.getElementById('service-requires-scheduling').checked = Number(service.requires_scheduling ?? 1) !== 0;
     document.getElementById('service-location').value = service.location || '';
     document.getElementById('service-latitude').value = service.latitude ?? DEFAULT_SERVICE_LATITUDE;
     document.getElementById('service-longitude').value = service.longitude ?? DEFAULT_SERVICE_LONGITUDE;
@@ -572,6 +573,7 @@ function serviceFormPayload() {
     category_id: document.getElementById('service-category').value || undefined,
     price: document.getElementById('service-price').value,
     duration_minutes: document.getElementById('service-duration').value || undefined,
+    requires_scheduling: document.getElementById('service-requires-scheduling').checked,
     location: document.getElementById('service-location').value.trim() || undefined,
     latitude: document.getElementById('service-latitude').value || undefined,
     longitude: document.getElementById('service-longitude').value || undefined,

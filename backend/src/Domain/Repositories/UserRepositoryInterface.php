@@ -16,6 +16,9 @@ interface UserRepositoryInterface
 
     public function findByEmail(string $email): ?User;
 
+    /** "Continuar con Google": vincula la cuenta (por correo) a su ID de Google. */
+    public function linkGoogleId(int $userId, string $googleId): void;
+
     public function emailExists(string $email): bool;
 
     /**

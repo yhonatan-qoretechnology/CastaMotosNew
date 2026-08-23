@@ -54,6 +54,23 @@ const helpers = {
     return `api/media/${type}/${filename}`; // relativo: se resuelve contra <base>, ver apiService.js
   },
 
+  /**
+   * A dónde lleva el link de una categoría en los menús/chips del sitio
+   * (dropdown de categorías, carrusel de la portada). "categoria/{slug}"
+   * (.htaccess → productos.html?category=...) solo busca PRODUCTOS — la
+   * categoría "Servicios" (y cualquier cosa que algún día viva ahí) nunca
+   * tiene productos propios, así que ese link mostraba siempre "No se
+   * encontraron productos con estos filtros" aunque sí hubiera servicios
+   * cargados. Esa categoría puntual va a /servicios en cambio (que sí sabe
+   * filtrar por categoría — ver servicios.js).
+   */
+  categoryHref(category) {
+    if (category.slug === 'servicios') {
+      return `servicios?category=${encodeURIComponent(category.slug)}`;
+    }
+    return `categoria/${encodeURIComponent(category.slug)}`;
+  },
+
   toast(message, variant = 'info') {
     let stack = document.querySelector('.toast-stack');
     if (!stack) {

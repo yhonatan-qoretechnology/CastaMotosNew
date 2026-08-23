@@ -65,6 +65,14 @@ final class AddCartItemUseCase
             throw new NotFoundException('Servicio no encontrado.');
         }
 
+        // No todos los servicios se agendan con fecha/hora (sección nueva,
+        // /admin → Servicios → "Requiere agendar fecha y hora") — los que no,
+        // se agregan al carrito como un item normal, scheduled_at queda NULL.
+        if ((int) ($service['requires_scheduling'] ?? 1) === 0) {
+            $this->carts->addItem($cartId, null, $serviceId, $quantity, (float) $service['price'], null);
+            return;
+        }
+
         if ($scheduledAt === null || $scheduledAt === '') {
             throw new ValidationException('No fue posible agendar el servicio.', [
                 'scheduled_at' => ['Debes elegir una fecha y hora para el servicio.'],

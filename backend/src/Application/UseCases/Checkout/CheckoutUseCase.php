@@ -205,7 +205,7 @@ final class CheckoutUseCase
                 ]);
             }
 
-            if ($item['type'] === 'service' && empty($item['scheduled_at'])) {
+            if ($item['type'] === 'service' && ($item['requires_scheduling'] ?? true) && empty($item['scheduled_at'])) {
                 throw new ValidationException('No fue posible confirmar el pedido.', [
                     'cart' => ["\"{$item['name']}\" no tiene fecha y hora agendada."],
                 ]);

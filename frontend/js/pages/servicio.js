@@ -33,10 +33,48 @@ function directionsLink(service) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.location)}`;
 }
 
+/**
+ * No todos los servicios se agendan para una fecha/hora puntual (sección
+ * nueva, /admin → Servicios → "Requiere agendar fecha y hora") — cuando no,
+ * la ficha se salta el selector de fecha/hora y agrega directo al carrito,
+ * como un producto cualquiera (ver AddCartItemUseCase del lado del backend,
+ * que es quien realmente decide si exige scheduled_at o no).
+ */
+function serviceRequiresScheduling(service) {
+  return Number(service.requires_scheduling ?? 1) !== 0;
+}
+
+function purchaseBoxMarkup(service) {
+  if (!serviceRequiresScheduling(service)) {
+    return `
+      <div class="purchase-box mt-16">
+        <button class="btn btn-primary btn-block" id="add-service-to-cart-btn">Agregar al carrito</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="purchase-box mt-16">
+      <p style="font-weight:700;margin:0 0 10px;">📅 Reservar este servicio</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reservation-date">Fecha</label>
+          <input type="date" class="form-control" id="reservation-date">
+        </div>
+        <div class="form-group">
+          <label for="reservation-time">Hora</label>
+          <input type="time" class="form-control" id="reservation-time">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="add-service-to-cart-btn">Agendar servicio</button>
+    </div>
+  `;
+}
+
 function renderServiceDetail(service) {
   const links = serviceShareLinks(service);
   const breadcrumbCategory = service.category_slug
-    ? `<a href="categoria/${encodeURIComponent(service.category_slug)}">${helpers.escapeHtml(service.category_name)}</a>`
+    ? `<a href="${helpers.categoryHref({ slug: service.category_slug })}">${helpers.escapeHtml(service.category_name)}</a>`
     : helpers.escapeHtml(service.category_name || '');
 
   document.getElementById('service-detail-mount').innerHTML = `
@@ -60,20 +98,7 @@ function renderServiceDetail(service) {
           </p>
         ` : ''}
 
-        <div class="purchase-box mt-16">
-          <p style="font-weight:700;margin:0 0 10px;">📅 Reservar este servicio</p>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="reservation-date">Fecha</label>
-              <input type="date" class="form-control" id="reservation-date">
-            </div>
-            <div class="form-group">
-              <label for="reservation-time">Hora</label>
-              <input type="time" class="form-control" id="reservation-time">
-            </div>
-          </div>
-          <button class="btn btn-primary btn-block" id="add-service-to-cart-btn">Agendar servicio</button>
-        </div>
+        ${purchaseBoxMarkup(service)}
 
         <button class="btn btn-secondary mt-16" id="service-favorite-btn">
           ${service.is_favorite ? '♥ En favoritos' : '♡ Agregar a favoritos'}
@@ -95,26 +120,38 @@ function renderServiceDetail(service) {
 
   initGallery360(serviceImageUrls(service));
 
-  // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
-  document.getElementById('reservation-date').min = new Date().toISOString().slice(0, 10);
+  if (serviceRequiresScheduling(service)) {
+    // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
+    document.getElementById('reservation-date').min = new Date().toISOString().slice(0, 10);
 
-  document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
-    const date = document.getElementById('reservation-date').value;
-    const time = document.getElementById('reservation-time').value;
+    document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
+      const date = document.getElementById('reservation-date').value;
+      const time = document.getElementById('reservation-time').value;
 
-    if (!date || !time) {
-      helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
-      return;
-    }
+      if (!date || !time) {
+        helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
+        return;
+      }
 
-    try {
-      await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${time}:00` });
-      helpers.toast('Servicio agendado y agregado al carrito.', 'success');
-      refreshCartBadge();
-    } catch (error) {
-      helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
-    }
-  });
+      try {
+        await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${time}:00` });
+        helpers.toast('Servicio agendado y agregado al carrito.', 'success');
+        refreshCartBadge();
+      } catch (error) {
+        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+      }
+    });
+  } else {
+    document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
+      try {
+        await cartService.addItem({ service_id: service.id, quantity: 1 });
+        helpers.toast('Servicio agregado al carrito.', 'success');
+        refreshCartBadge();
+      } catch (error) {
+        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+      }
+    });
+  }
 
   document.getElementById('service-favorite-btn').addEventListener('click', async () => {
     if (!authService.isAuthenticated()) {

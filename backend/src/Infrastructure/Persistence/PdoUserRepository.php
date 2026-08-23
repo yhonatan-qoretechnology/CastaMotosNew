@@ -74,6 +74,12 @@ final class PdoUserRepository implements UserRepositoryInterface
         return $userId;
     }
 
+    public function linkGoogleId(int $userId, string $googleId): void
+    {
+        $stmt = $this->connection->prepare('UPDATE users SET google_id = :google_id WHERE id = :id');
+        $stmt->execute(['google_id' => $googleId, 'id' => $userId]);
+    }
+
     public function updateProfile(int $userId, array $data): void
     {
         $stmt = $this->connection->prepare(
