@@ -3287,6 +3287,12 @@ textarea {
 .wash-option__icon {
   font-size: 2.4rem;
 }
+.wash-option__img {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radio-lg);
+  object-fit: cover;
+}
 .wash-option__name {
   font-weight: 700;
   color: var(--blanco);

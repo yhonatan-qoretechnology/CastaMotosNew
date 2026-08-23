@@ -42,6 +42,8 @@ final class ServiceController
         'location' => 'max:255',
         'latitude' => 'numeric',
         'longitude' => 'numeric',
+        'warranty' => 'max:150',
+        'facebook_url' => 'max:255',
         'status' => 'in:draft,active,inactive',
     ];
 

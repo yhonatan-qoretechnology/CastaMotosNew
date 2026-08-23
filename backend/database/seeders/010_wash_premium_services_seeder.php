@@ -5,17 +5,17 @@ declare(strict_types=1);
 use App\Infrastructure\Database\Seeder;
 
 /**
- * "Lavado de Moto" y "Lavado de Casco" (sección 52, wizard de lavado) no son
- * datos de demostración descartables: el wizard (frontend/js/pages/lavado.js,
- * WASH_SLUGS) busca estos DOS servicios por slug exacto ("lavado-de-moto" /
- * "lavado-de-casco") y si no existen en el catálogo, el paso 1 del wizard
- * muestra "No fue posible cargar los servicios de lavado". Por eso viven acá
- * como seeder — igual que las categorías — en vez de depender de que alguien
- * los cree a mano desde el admin y tipee el slug exacto correcto.
+ * Variantes "Premium" del lavado (sección 52, wizard de lavado) — igual que
+ * 008 (Lavado de Moto / Lavado de Casco, las variantes "normales"), el
+ * wizard (frontend/js/pages/lavado.js, WASH_CATALOG) las busca por slug
+ * exacto ("lavada-premium-de-moto" / "lavada-premium-de-casco"). A
+ * diferencia de las normales, estas SÍ son opcionales para el wizard: si
+ * alguna no existe todavía, simplemente no aparece como opción (no rompe
+ * nada), a diferencia de las normales que si faltan muestran el error de
+ * "servicios no creados en el catálogo".
  *
  * Precio y duración son un punto de partida razonable; se pueden ajustar
- * después desde el admin (Servicios) sin romper el wizard, que solo depende
- * del slug.
+ * después desde el admin (Servicios) sin romper el wizard.
  */
 return new class extends Seeder {
     public function run(PDO $connection): void
@@ -24,19 +24,19 @@ return new class extends Seeder {
 
         $this->upsertService($connection, [
             'category_id' => $categoryId,
-            'name' => 'Lavado de Moto',
-            'slug' => 'lavado-de-moto',
-            'description' => 'Lavado completo de tu motocicleta: carrocería, llantas, cadena y motor. Reservá el día y la hora que prefieras.',
-            'price' => '25000.00',
+            'name' => 'Lavada Premium de Moto',
+            'slug' => 'lavada-premium-de-moto',
+            'description' => 'Lavado premium de tu motocicleta: carrocería, llantas, cadena, motor y encerado. Reservá el día y la hora que prefieras.',
+            'price' => '35000.00',
             'duration_minutes' => 60,
         ]);
 
         $this->upsertService($connection, [
             'category_id' => $categoryId,
-            'name' => 'Lavado de Casco',
-            'slug' => 'lavado-de-casco',
-            'description' => 'Limpieza y desinfección profunda de tu casco (exterior e interior). Reservá el día y la hora que prefieras.',
-            'price' => '12000.00',
+            'name' => 'Lavada Premium de Casco',
+            'slug' => 'lavada-premium-de-casco',
+            'description' => 'Limpieza y desinfección profunda de tu casco con productos premium: exterior, interior, correas y ventilación. Reservá el día y la hora que prefieras.',
+            'price' => '20000.00',
             'duration_minutes' => 180,
         ]);
     }

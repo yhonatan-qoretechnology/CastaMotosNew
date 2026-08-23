@@ -17,9 +17,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260819d">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260822b">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260819b"></script>
+<script src="frontend/js/theme-init.js?v=20260822b"></script>
 </head>
 <body>
 
@@ -68,6 +68,11 @@
     </div>
   </div>
 
+  <section class="section" id="home-wash-section">
+    <h2 class="section__title" data-i18n="home.section.wash">Lavado de Motos y Cascos</h2>
+    <div id="home-wash"><p class="loading-state" data-i18n="home.loading.wash">Cargando servicios de lavado…</p></div>
+  </section>
+
   <section class="section">
     <h2 class="section__title" data-i18n="home.section.categories">Categorías</h2>
     <div id="home-categories"><p class="loading-state" data-i18n="home.loading.categories">Cargando categorías…</p></div>
@@ -99,17 +104,17 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260819b"></script>
-<script src="frontend/js/utils/helpers.js?v=20260819b"></script>
-<script src="frontend/js/services/apiService.js?v=20260819b"></script>
-<script src="frontend/js/services/authService.js?v=20260819b"></script>
-<script src="frontend/js/services/catalogService.js?v=20260819b"></script>
-<script src="frontend/js/services/cartService.js?v=20260819b"></script>
-<script src="frontend/js/services/themeService.js?v=20260819b"></script>
-<script src="frontend/js/services/settingsService.js?v=20260819b"></script>
-<script src="frontend/js/services/notificationService.js?v=20260819b"></script>
-<script src="frontend/js/components/layout.js?v=20260819b"></script>
-<script src="frontend/js/components/cards.js?v=20260819b"></script>
-<script src="frontend/js/pages/home.js?v=20260819b"></script>
+<script src="frontend/js/i18n.js?v=20260822b"></script>
+<script src="frontend/js/utils/helpers.js?v=20260822b"></script>
+<script src="frontend/js/services/apiService.js?v=20260822b"></script>
+<script src="frontend/js/services/authService.js?v=20260822b"></script>
+<script src="frontend/js/services/catalogService.js?v=20260822b"></script>
+<script src="frontend/js/services/cartService.js?v=20260822b"></script>
+<script src="frontend/js/services/themeService.js?v=20260822b"></script>
+<script src="frontend/js/services/settingsService.js?v=20260822b"></script>
+<script src="frontend/js/services/notificationService.js?v=20260822b"></script>
+<script src="frontend/js/components/layout.js?v=20260822b"></script>
+<script src="frontend/js/components/cards.js?v=20260822b"></script>
+<script src="frontend/js/pages/home.js?v=20260822b"></script>
 </body>
 </html>

@@ -47,8 +47,8 @@ final class PdoUserRepository implements UserRepositoryInterface
     public function create(array $data): int
     {
         $stmt = $this->connection->prepare(
-            'INSERT INTO users (name, last_name, email, phone, password, status)
-             VALUES (:name, :last_name, :email, :phone, :password, :status)'
+            'INSERT INTO users (name, last_name, email, phone, password, status, terms_accepted_at, terms_accepted_ip)
+             VALUES (:name, :last_name, :email, :phone, :password, :status, :terms_accepted_at, :terms_accepted_ip)'
         );
         $stmt->execute([
             'name' => $data['name'],
@@ -57,6 +57,10 @@ final class PdoUserRepository implements UserRepositoryInterface
             'phone' => $data['phone'] ?? null,
             'password' => $data['password'],
             'status' => 'active',
+            // Evidencia de que aceptó términos y condiciones al registrarse
+            // (sección registro): fecha/hora + IP, no solo un booleano.
+            'terms_accepted_at' => $data['terms_accepted_at'] ?? null,
+            'terms_accepted_ip' => $data['terms_accepted_ip'] ?? null,
         ]);
 
         $userId = (int) $this->connection->lastInsertId();

@@ -210,10 +210,12 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
         $stmt = $this->connection->prepare(
             'INSERT INTO services (
                 store_id, category_id, professional_user_id, name, name_en, slug, description, description_en, price,
-                duration_minutes, location, latitude, longitude, schedule, availability, cancellation_policy, status
+                duration_minutes, location, latitude, longitude, schedule, availability, cancellation_policy, warranty,
+                facebook_url, status
             ) VALUES (
                 :store_id, :category_id, :professional_user_id, :name, :name_en, :slug, :description, :description_en, :price,
-                :duration_minutes, :location, :latitude, :longitude, :schedule, :availability, :cancellation_policy, :status
+                :duration_minutes, :location, :latitude, :longitude, :schedule, :availability, :cancellation_policy, :warranty,
+                :facebook_url, :status
             )'
         );
         $stmt->execute($this->bindings($data));
@@ -228,7 +230,8 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
                 store_id = :store_id, category_id = :category_id, professional_user_id = :professional_user_id,
                 name = :name, name_en = :name_en, slug = :slug, description = :description, description_en = :description_en, price = :price,
                 duration_minutes = :duration_minutes, location = :location, latitude = :latitude, longitude = :longitude,
-                schedule = :schedule, availability = :availability, cancellation_policy = :cancellation_policy, status = :status
+                schedule = :schedule, availability = :availability, cancellation_policy = :cancellation_policy,
+                warranty = :warranty, facebook_url = :facebook_url, status = :status
              WHERE id = :id'
         );
         $stmt->execute($this->bindings($data) + ['id' => $id]);
@@ -253,6 +256,8 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
             'schedule' => isset($data['schedule']) ? json_encode($data['schedule']) : null,
             'availability' => isset($data['availability']) ? json_encode($data['availability']) : null,
             'cancellation_policy' => $data['cancellation_policy'] ?? null,
+            'warranty' => $data['warranty'] ?? null,
+            'facebook_url' => $data['facebook_url'] ?? null,
             'status' => $data['status'] ?? 'draft',
         ];
     }

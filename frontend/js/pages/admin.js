@@ -536,6 +536,8 @@ async function openServiceForm(slug) {
     document.getElementById('service-description').value = service.description || '';
     document.getElementById('service-description-en').value = service.description_en || '';
     document.getElementById('service-cancellation').value = service.cancellation_policy || '';
+    document.getElementById('service-warranty').value = service.warranty || '';
+    document.getElementById('service-facebook').value = service.facebook_url || '';
     document.getElementById('service-status').value = service.status;
 
     document.getElementById('service-modal-title').textContent = 'Editar servicio';
@@ -567,6 +569,8 @@ function serviceFormPayload() {
     description: document.getElementById('service-description').value.trim() || undefined,
     description_en: document.getElementById('service-description-en').value.trim() || undefined,
     cancellation_policy: document.getElementById('service-cancellation').value.trim() || undefined,
+    warranty: document.getElementById('service-warranty').value.trim() || undefined,
+    facebook_url: document.getElementById('service-facebook').value.trim() || undefined,
     status: document.getElementById('service-status').value,
   };
 }
@@ -813,6 +817,7 @@ async function openProductForm(slug) {
     document.getElementById('product-min-stock').value = product.min_stock || 0;
     document.getElementById('product-short-description').value = product.short_description || '';
     document.getElementById('product-short-description-en').value = product.short_description_en || '';
+    document.getElementById('product-warranty').value = product.warranty || '';
     document.getElementById('product-status').value = product.status;
 
     // El stock ya existe en inventario: se bloquea aquí a propósito (ver comentario arriba).
@@ -856,6 +861,7 @@ function productFormPayload() {
     min_stock: document.getElementById('product-min-stock').value || undefined,
     short_description: document.getElementById('product-short-description').value.trim() || undefined,
     short_description_en: document.getElementById('product-short-description-en').value.trim() || undefined,
+    warranty: document.getElementById('product-warranty').value.trim() || undefined,
     status: document.getElementById('product-status').value,
   };
 }

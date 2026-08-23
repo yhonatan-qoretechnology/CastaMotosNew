@@ -22,7 +22,7 @@ final class RegisterUserUseCase
     {
     }
 
-    public function handle(array $input): array
+    public function handle(array $input, string $ip = '0.0.0.0'): array
     {
         if ($this->users->emailExists($input['email'])) {
             throw new ValidationException('Los datos enviados no son válidos.', [
@@ -36,6 +36,10 @@ final class RegisterUserUseCase
             'email' => $input['email'],
             'phone' => $input['phone'] ?? null,
             'password' => password_hash($input['password'], PASSWORD_DEFAULT),
+            // "terms_accepted" ya fue validado como obligatorio (AuthController)
+            // antes de llegar acá; esto es la evidencia de esa aceptación.
+            'terms_accepted_at' => date('Y-m-d H:i:s'),
+            'terms_accepted_ip' => $ip,
         ]);
 
         $this->sendVerificationEmail($userId, $input['name'], $input['email']);

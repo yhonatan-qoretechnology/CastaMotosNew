@@ -128,6 +128,7 @@ function renderProductDetail(product) {
             ${hasDiscount ? `<span class="card__price-old" style="font-size:1rem;">${helpers.formatCurrency(product.previous_price)}</span>` : ''}
           </p>
           ${product.short_description ? `<p style="color:var(--gris-texto);">${helpers.escapeHtml(product.short_description)}</p>` : ''}
+          ${product.warranty ? `<p style="color:var(--gris-texto);font-size:0.85rem;">🛡️ Garantía: ${helpers.escapeHtml(product.warranty)}</p>` : ''}
 
           ${variantOptionsMarkup(product)}
 

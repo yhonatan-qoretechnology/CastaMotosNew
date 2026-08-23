@@ -2,22 +2,58 @@
  * Reserva de "Lavado de Motos y Cascos" — wizard paso a paso sobre la MISMA
  * base de reservas de servicios que ya existe (sección 12: scheduled_at,
  * carrito, checkout, panel admin de Reservas). No se reinventa nada nuevo
- * del lado del backend: "Lavado de Moto" y "Lavado de Casco" son servicios
- * reales del catálogo (creados en /admin → Servicios, con su propio precio
- * editable ahí — "los valores pueden variar" se resuelve solo con eso, sin
- * hardcodear ningún precio acá).
+ * del lado del backend, y el paso 1 NO depende de una lista fija de slugs:
+ * muestra TODOS los servicios activos de la categoría "Lavado" (creada por
+ * el seeder 011, ver backend/database/seeders). Así, cualquier variante
+ * nueva que se cree desde /admin → Servicios y se le asigne esa categoría
+ * (una tercera opción, una cuarta, lo que haga falta con el tiempo) aparece
+ * sola acá, sin tocar este archivo cada vez — precio y nombre siempre salen
+ * del servicio real del catálogo.
  */
-const WASH_SLUGS = { moto: 'lavado-de-moto', casco: 'lavado-de-casco' };
+const WASH_CATEGORY_SLUG = 'lavado';
+const WASH_ICON_BY_KEYWORD = [
+  { keyword: 'casco', icon: '🪖' },
+  { keyword: 'moto', icon: '🏍️' },
+];
+const WASH_FALLBACK_ICON = '🧼';
+
+/** Igual que flattenCategoriesList() en servicios.js — el árbol de categorías
+ * viene anidado (children[]) y hace falta buscar "lavado" en cualquier nivel. */
+function flattenCategories(tree) {
+  return tree.reduce((flat, node) => flat.concat([node], flattenCategories(node.children || [])), []);
+}
+
+/**
+ * Ícono por defecto mientras el servicio no tenga foto propia subida desde
+ * /admin → Servicios (se adivina moto/casco por el nombre, y si no matchea
+ * ninguno cae a un ícono genérico — no hay forma de saber de antemano cómo
+ * se va a llamar cada variante nueva que se cree a futuro). En cuanto exista
+ * al menos una imagen real (service.images, mismo campo que usa el resto
+ * del catálogo — ver cards.js/servicio.js), se muestra esa foto acá también,
+ * sin tocar nada del lado del backend.
+ */
+function washOptionMedia(service) {
+  // El listado por categoría (paginate()) solo trae "primary_image" — no el
+  // array "images" completo que sí trae la ficha individual del servicio
+  // (findBySlug/find). Cualquiera de los dos que venga sirve acá.
+  const image = (service.images && service.images.length > 0 ? service.images[0].url : null) || service.primary_image || null;
+  if (image) {
+    return `<img class="wash-option__img" src="${helpers.mediaUrl('services', image)}" alt="${helpers.escapeHtml(service.name)}">`;
+  }
+  const nameLower = (service.name || '').toLowerCase();
+  const match = WASH_ICON_BY_KEYWORD.find((entry) => nameLower.includes(entry.keyword));
+  return `<span class="wash-option__icon">${match ? match.icon : WASH_FALLBACK_ICON}</span>`;
+}
 
 let washState = {
   step: 1,
-  type: null, // 'moto' | 'casco'
   service: null, // el servicio real cargado (precio, id, etc.)
   date: '',
   time: '',
   name: '',
   phone: '',
-  itemNote: '', // modelo de moto / marca del casco — texto libre, opcional
+  plate: '', // placa de la moto — obligatoria
+  itemNote: '', // observaciones — texto libre, opcional
   primaryAddress: null, // se carga una vez al inicio (ver loadPrimaryAddress) — respaldo de teléfono si el perfil no lo tiene
 };
 
@@ -61,28 +97,33 @@ async function renderStep() {
     `;
 
     try {
-      const [moto, casco] = await Promise.all([
-        catalogService.service(WASH_SLUGS.moto),
-        catalogService.service(WASH_SLUGS.casco),
-      ]);
+      // La categoría "Lavado" (slug fijo, ver seeder 011) es el único slug
+      // que este archivo conoce de antemano — de ahí para abajo, todo sale
+      // del catálogo: cuántos servicios hay y cuáles son se resuelve en
+      // tiempo real, no a partir de una lista de opciones escrita acá.
+      const categories = await catalogService.categories();
+      const washCategory = flattenCategories(categories).find((cat) => cat.slug === WASH_CATEGORY_SLUG);
+      const list = washCategory
+        ? await catalogService.services({ category_id: washCategory.id, per_page: 50 })
+        : { data: [] };
+      const options = (list.data || []).filter((service) => service.status === 'active');
 
-      document.getElementById('wash-options').innerHTML = `
-        <button type="button" class="wash-option" data-type="moto">
-          <span class="wash-option__icon">🏍️</span>
-          <span class="wash-option__name">Lavado de Moto</span>
-          <span class="wash-option__price">${helpers.formatCurrency(moto.price)}</span>
+      if (options.length === 0) {
+        document.getElementById('wash-options').innerHTML = `<p class="error-state">No fue posible cargar los servicios de lavado — todavía no están creados en el catálogo.</p>`;
+        return;
+      }
+
+      document.getElementById('wash-options').innerHTML = options.map((service) => `
+        <button type="button" class="wash-option" data-id="${service.id}">
+          ${washOptionMedia(service)}
+          <span class="wash-option__name">${helpers.escapeHtml(service.name)}</span>
+          <span class="wash-option__price">${helpers.formatCurrency(service.price)}</span>
         </button>
-        <button type="button" class="wash-option" data-type="casco">
-          <span class="wash-option__icon">🪖</span>
-          <span class="wash-option__name">Lavado de Casco</span>
-          <span class="wash-option__price">${helpers.formatCurrency(casco.price)}</span>
-        </button>
-      `;
+      `).join('');
 
       document.querySelectorAll('.wash-option').forEach((btn) => {
         btn.addEventListener('click', () => {
-          washState.type = btn.dataset.type;
-          washState.service = btn.dataset.type === 'moto' ? moto : casco;
+          washState.service = options.find((s) => String(s.id) === btn.dataset.id);
           setStep(2);
         });
       });
@@ -94,7 +135,7 @@ async function renderStep() {
 
   if (washState.step === 2) {
     body.innerHTML = `
-      <p class="mt-16" style="color:var(--gris-texto);">Elegí fecha y hora para tu ${washState.type === 'moto' ? 'moto' : 'casco'}:</p>
+      <p class="mt-16" style="color:var(--gris-texto);">Elegí fecha y hora para "${helpers.escapeHtml(washState.service.name)}":</p>
       <div class="form-group mt-16">
         <label for="wash-date">Fecha</label>
         <input type="date" class="form-control" id="wash-date" value="${washState.date}" style="max-width:220px;">
@@ -133,16 +174,19 @@ async function renderStep() {
 
   if (washState.step === 3) {
     const user = authService.currentUser();
-    const noteLabel = washState.type === 'moto' ? 'Modelo de tu moto (opcional)' : 'Marca de tu casco (opcional)';
 
     body.innerHTML = `
       <p class="mt-16" style="color:var(--gris-texto);">Tus datos:</p>
       <div class="form-row mt-16">
         <div class="form-group"><label for="wash-name">Nombre</label><input class="form-control" id="wash-name" value="${helpers.escapeHtml(washState.name || (user ? user.name + ' ' + user.last_name : ''))}"></div>
-        <div class="form-group"><label for="wash-phone">Teléfono</label><input class="form-control" id="wash-phone" value="${helpers.escapeHtml(washState.phone || user?.phone || washState.primaryAddress?.phone || '')}"></div>
+        <div class="form-group"><label for="wash-phone">Celular / WhatsApp</label><input class="form-control" id="wash-phone" value="${helpers.escapeHtml(washState.phone || user?.phone || washState.primaryAddress?.phone || '')}"></div>
       </div>
       <div class="form-group">
-        <label for="wash-note">${noteLabel}</label>
+        <label for="wash-plate">Placa de la moto</label>
+        <input class="form-control" id="wash-plate" value="${helpers.escapeHtml(washState.plate)}" placeholder="Ej: ABC12D">
+      </div>
+      <div class="form-group">
+        <label for="wash-note">Observaciones (opcional)</label>
         <input class="form-control" id="wash-note" value="${helpers.escapeHtml(washState.itemNote)}">
       </div>
       <div class="wash-wizard__nav">
@@ -154,12 +198,14 @@ async function renderStep() {
     document.getElementById('wash-next-btn').addEventListener('click', () => {
       const name = document.getElementById('wash-name').value.trim();
       const phone = document.getElementById('wash-phone').value.trim();
-      if (!name || !phone) {
-        helpers.toast('Completá tu nombre y teléfono para continuar.', 'error');
+      const plate = document.getElementById('wash-plate').value.trim();
+      if (!name || !phone || !plate) {
+        helpers.toast('Completá tu nombre, celular/WhatsApp y la placa de la moto para continuar.', 'error');
         return;
       }
       washState.name = name;
       washState.phone = phone;
+      washState.plate = plate.toUpperCase();
       washState.itemNote = document.getElementById('wash-note').value.trim();
 
       // Si el perfil todavía no tenía teléfono, se completa con este —
@@ -184,8 +230,9 @@ async function renderStep() {
         <div class="summary-row"><span>${washState.service.name}</span><span>${helpers.formatCurrency(washState.service.price)}</span></div>
         <div class="summary-row"><span>Fecha</span><span>${scheduledLabel}</span></div>
         <div class="summary-row"><span>Nombre</span><span>${helpers.escapeHtml(washState.name)}</span></div>
-        <div class="summary-row"><span>Teléfono</span><span>${helpers.escapeHtml(washState.phone)}</span></div>
-        ${washState.itemNote ? `<div class="summary-row"><span>${washState.type === 'moto' ? 'Modelo' : 'Marca del casco'}</span><span>${helpers.escapeHtml(washState.itemNote)}</span></div>` : ''}
+        <div class="summary-row"><span>Celular / WhatsApp</span><span>${helpers.escapeHtml(washState.phone)}</span></div>
+        <div class="summary-row"><span>Placa de la moto</span><span>${helpers.escapeHtml(washState.plate)}</span></div>
+        ${washState.itemNote ? `<div class="summary-row"><span>Observaciones</span><span>${helpers.escapeHtml(washState.itemNote)}</span></div>` : ''}
         <div class="summary-row total"><span>Total</span><span>${helpers.formatCurrency(washState.service.price)}</span></div>
       </div>
       <div class="form-error" id="wash-error"></div>
@@ -267,11 +314,11 @@ async function confirmReservation() {
       scheduled_at: `${washState.date} ${washState.time}:00`,
     });
 
-    // El teléfono/modelo van como nota del pedido — checkout.js precarga
-    // este texto en el campo de notas (ver ?note= ahí) para que quede
-    // registrado en el pedido sin duplicar campos que el sistema de
+    // El celular/placa/observaciones van como nota del pedido — checkout.js
+    // precarga este texto en el campo de notas (ver ?note= ahí) para que
+    // quede registrado en el pedido sin duplicar campos que el sistema de
     // reservas ya cubre (nombre/fecha ya están en la reserva misma).
-    const noteParts = [`Tel: ${washState.phone}`];
+    const noteParts = [`Tel: ${washState.phone}`, `Placa: ${washState.plate}`];
     if (washState.itemNote) noteParts.push(washState.itemNote);
 
     window.location.href = 'checkout?note=' + encodeURIComponent(noteParts.join(' — '));

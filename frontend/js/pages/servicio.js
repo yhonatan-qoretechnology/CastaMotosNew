@@ -51,6 +51,8 @@ function renderServiceDetail(service) {
         ${service.category_name ? `<p style="color:var(--gris-texto);">${helpers.escapeHtml(service.category_name)}</p>` : ''}
         <p style="font-size:1.8rem;font-weight:800;color:var(--amarillo);margin:12px 0 4px;">${helpers.formatCurrency(service.price)}</p>
         ${service.duration_minutes ? `<p style="color:var(--gris-texto);">Duración estimada: ${service.duration_minutes} min</p>` : ''}
+        ${service.warranty ? `<p style="color:var(--gris-texto);font-size:0.85rem;">🛡️ Garantía: ${helpers.escapeHtml(service.warranty)}</p>` : ''}
+        ${service.facebook_url ? `<p style="color:var(--gris-texto);"><a href="${helpers.escapeHtml(service.facebook_url)}" target="_blank" rel="noopener" style="color:var(--amarillo);">📘 Ver en Facebook</a></p>` : ''}
         ${service.location ? `
           <p style="color:var(--gris-texto);">
             📍 ${helpers.escapeHtml(service.location)}

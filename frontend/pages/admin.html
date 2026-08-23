@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260819d">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260822a">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260819b"></script>
+<script src="frontend/js/theme-init.js?v=20260822a"></script>
 </head>
 <body>
 
@@ -360,6 +360,16 @@
       </div>
 
       <div class="form-group">
+        <label for="service-warranty">Garantía (opcional)</label>
+        <input class="form-control" id="service-warranty" placeholder="Ej. Satisfacción garantizada — repetimos el lavado sin costo" maxlength="150">
+      </div>
+
+      <div class="form-group">
+        <label for="service-facebook">Página de Facebook (opcional)</label>
+        <input class="form-control" type="url" id="service-facebook" placeholder="https://www.facebook.com/..." maxlength="255">
+      </div>
+
+      <div class="form-group">
         <label for="service-status">Estado</label>
         <select class="form-control" id="service-status">
           <option value="draft">Borrador (no visible al público)</option>
@@ -456,6 +466,11 @@
       <div class="form-group">
         <label for="product-short-description-en">Descripción corta en inglés (opcional)</label>
         <textarea class="form-control" id="product-short-description-en" rows="2" placeholder="Se deja vacío = se muestra en español igual"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="product-warranty">Garantía (opcional)</label>
+        <input class="form-control" id="product-warranty" placeholder="Ej. 12 meses por defectos de fábrica" maxlength="150">
       </div>
 
       <div class="form-group">
@@ -636,18 +651,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260819b"></script>
-<script src="frontend/js/utils/helpers.js?v=20260819b"></script>
-<script src="frontend/js/services/apiService.js?v=20260819b"></script>
-<script src="frontend/js/services/authService.js?v=20260819b"></script>
-<script src="frontend/js/services/catalogService.js?v=20260819b"></script>
-<script src="frontend/js/services/cartService.js?v=20260819b"></script>
-<script src="frontend/js/services/adminService.js?v=20260819b"></script>
-<script src="frontend/js/services/themeService.js?v=20260819b"></script>
-<script src="frontend/js/services/settingsService.js?v=20260819b"></script>
-<script src="frontend/js/services/notificationService.js?v=20260819b"></script>
-<script src="frontend/js/components/layout.js?v=20260819b"></script>
-<script src="frontend/js/components/charts.js?v=20260819b"></script>
-<script src="frontend/js/pages/admin.js?v=20260819b"></script>
+<script src="frontend/js/i18n.js?v=20260822a"></script>
+<script src="frontend/js/utils/helpers.js?v=20260822a"></script>
+<script src="frontend/js/services/apiService.js?v=20260822a"></script>
+<script src="frontend/js/services/authService.js?v=20260822a"></script>
+<script src="frontend/js/services/catalogService.js?v=20260822a"></script>
+<script src="frontend/js/services/cartService.js?v=20260822a"></script>
+<script src="frontend/js/services/adminService.js?v=20260822a"></script>
+<script src="frontend/js/services/themeService.js?v=20260822a"></script>
+<script src="frontend/js/services/settingsService.js?v=20260822a"></script>
+<script src="frontend/js/services/notificationService.js?v=20260822a"></script>
+<script src="frontend/js/components/layout.js?v=20260822a"></script>
+<script src="frontend/js/components/charts.js?v=20260822a"></script>
+<script src="frontend/js/pages/admin.js?v=20260822a"></script>
 </body>
 </html>

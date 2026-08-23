@@ -84,6 +84,43 @@ async function loadFeaturedProducts() {
   }
 }
 
+/** Igual que flattenCategoriesList() en servicios.js/lavado.js — el árbol de
+ * categorías viene anidado (children[]) y hace falta buscar "lavado" en
+ * cualquier nivel. */
+function flattenCategories(tree) {
+  return tree.reduce((flat, node) => flat.concat([node], flattenCategories(node.children || [])), []);
+}
+
+/**
+ * Banner "Lavado de Motos y Cascos" (arriba de esta sección) + las tarjetas
+ * reales de la categoría "Lavado" acá debajo — mismos servicios que carga el
+ * wizard (lavado.js): nombre, precio y foto salen del catálogo, no hay nada
+ * hardcodeado. Si todavía no hay ninguno creado, se ve el mismo mensaje que
+ * ya usa el wizard en ese caso.
+ */
+async function loadWashServices() {
+  const mount = document.getElementById('home-wash');
+  if (!mount) return;
+
+  try {
+    const categories = await catalogService.categories();
+    const washCategory = flattenCategories(categories).find((cat) => cat.slug === 'lavado');
+    const result = washCategory
+      ? await catalogService.services({ category_id: washCategory.id, per_page: 8 })
+      : { data: [] };
+
+    if (result.data.length === 0) {
+      mount.innerHTML = `<p class="error-state">${i18nService.t('home.error.wash')}</p>`;
+      return;
+    }
+
+    mount.innerHTML = `<div class="grid">${result.data.map(serviceCardMarkup).join('')}</div>`;
+    wireCardEvents(mount);
+  } catch (error) {
+    mount.innerHTML = `<p class="error-state">${i18nService.t('home.error.wash')}</p>`;
+  }
+}
+
 async function loadFeaturedServices() {
   const mount = document.getElementById('home-services');
   if (!mount) return;
@@ -119,4 +156,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDeals();
   loadFeaturedProducts();
   loadFeaturedServices();
+  loadWashServices();
 });

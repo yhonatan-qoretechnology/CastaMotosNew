@@ -49,7 +49,7 @@ final class AuthController
         ])->validate();
 
         $useCase = new RegisterUserUseCase($this->users);
-        $result = $useCase->handle($data);
+        $result = $useCase->handle($data, $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 
         Response::success([
             'user' => $result['user']->toArray(),
