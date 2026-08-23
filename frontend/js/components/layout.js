@@ -387,12 +387,24 @@ function authModalMarkup() {
           <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
               <input type="checkbox" id="register-terms" required style="width:auto;">
-              ${i18nService.t('auth.acceptTermsPrefix')} <a href="terminos" target="_blank" rel="noopener" style="color:var(--amarillo);text-decoration:underline;">${i18nService.t('auth.termsLink')}</a>
+              ${i18nService.t('auth.acceptTermsPrefix')} <a href="terminos" id="register-terms-link" target="_blank" rel="noopener" style="color:var(--amarillo);text-decoration:underline;">${i18nService.t('auth.termsLink')}</a>
             </label>
           </div>
           <div class="form-error" id="register-error"></div>
           <button class="btn btn-primary btn-block" type="submit">${i18nService.t('auth.submitRegister')}</button>
         </form>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="terms-modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h2 class="modal__title">${i18nService.t('auth.termsLink')}</h2>
+          <button class="modal__close" id="terms-modal-close" aria-label="${i18nService.t('auth.close')}">✕</button>
+        </div>
+        <div id="terms-modal-body" style="white-space:pre-line;color:var(--gris-texto);font-size:0.9rem;">
+          <p class="loading-state">${i18nService.t('nav.loading')}</p>
+        </div>
       </div>
     </div>
   `;
@@ -408,6 +420,40 @@ function closeAuthModal() {
   document.getElementById('auth-modal-overlay').classList.remove('is-open');
 }
 
+// Se cachea una vez por carga de página — mismo texto para toda la sesión,
+// no hace falta volver a pedirlo cada vez que se reabre el modal.
+let cachedTermsContent = null;
+
+/**
+ * Términos y condiciones EN MODAL (antes abría /terminos en pestaña nueva):
+ * mismo contenido real de site_settings (sección 6, ver settingsService.terms()
+ * / terminos.js) — no un texto duplicado acá — para no perder lo ya escrito
+ * en el formulario de registro al querer leerlos.
+ */
+async function openTermsModal() {
+  const overlay = document.getElementById('terms-modal-overlay');
+  const body = document.getElementById('terms-modal-body');
+  overlay.classList.add('is-open');
+
+  if (cachedTermsContent !== null) {
+    body.textContent = cachedTermsContent;
+    return;
+  }
+
+  body.innerHTML = `<p class="loading-state">${i18nService.t('nav.loading')}</p>`;
+  try {
+    const { content } = await settingsService.terms();
+    cachedTermsContent = content || 'Todavía no se ha publicado el texto de términos y condiciones.';
+    body.textContent = cachedTermsContent;
+  } catch (error) {
+    body.innerHTML = `<p class="error-state">No fue posible cargar los términos y condiciones.</p>`;
+  }
+}
+
+function closeTermsModal() {
+  document.getElementById('terms-modal-overlay').classList.remove('is-open');
+}
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.modal__tab').forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
   document.getElementById('login-form').hidden = tab !== 'login';
@@ -421,6 +467,14 @@ function initAuthModalEvents() {
 
   document.getElementById('auth-modal-close').addEventListener('click', closeAuthModal);
   overlay.addEventListener('click', (event) => { if (event.target === overlay) closeAuthModal(); });
+
+  document.getElementById('register-terms-link').addEventListener('click', (event) => {
+    event.preventDefault();
+    openTermsModal();
+  });
+  const termsOverlay = document.getElementById('terms-modal-overlay');
+  document.getElementById('terms-modal-close').addEventListener('click', closeTermsModal);
+  termsOverlay.addEventListener('click', (event) => { if (event.target === termsOverlay) closeTermsModal(); });
 
   document.querySelectorAll('.modal__tab').forEach((btn) => {
     btn.addEventListener('click', () => switchAuthTab(btn.dataset.tab));
