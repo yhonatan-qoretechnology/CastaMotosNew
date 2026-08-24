@@ -606,7 +606,7 @@ function renderFooter() {
           </div>
         </div>
         <div class="site-footer__bottom">
-          <a href="terminos">${i18nService.t('footer.terms')}</a> · ${i18nService.t('footer.progressNotice')} © ${new Date().getFullYear()} CASTAMOTO
+          <a href="terminos">${i18nService.t('footer.terms')}</a> · <a href="privacidad">${i18nService.t('footer.privacy')}</a> · ${i18nService.t('footer.progressNotice')} © ${new Date().getFullYear()} CASTAMOTO
         </div>
       </div>
     </footer>
@@ -771,6 +771,16 @@ async function initLayout() {
   renderFooter();
   renderWhatsappButton();
   renderAssistantWidget();
+
+  // Sesión perdida/expirada (ver apiService.js: 401 con token guardado) —
+  // ya se limpió y recargó desde ahí; acá solo se avisa y se abre el login,
+  // en vez de dejar que el usuario se pregunte por qué de repente ve todo
+  // como si nunca hubiera iniciado sesión.
+  if (sessionStorage.getItem('castamoto_session_expired')) {
+    sessionStorage.removeItem('castamoto_session_expired');
+    helpers.toast('Tu sesión expiró. Iniciá sesión de nuevo.', 'error');
+    openAuthModal('login');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initLayout);

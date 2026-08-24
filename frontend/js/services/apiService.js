@@ -59,6 +59,20 @@ async function request(method, path, { body, isFormData = false } = {}) {
 
   // El backend de CASTAMOTO siempre envuelve la respuesta en { success, message, data|errors }.
   if (!payload.success) {
+    // Sesión perdida/expirada (no un intento de login con contraseña mala:
+    // ESE caso nunca manda token, así que "token &&" no lo intercepta acá —
+    // solo actúa cuando YA creíamos estar logueados y el backend rechazó ese
+    // token). Se limpia la sesión y se recarga con una marca para que
+    // initLayout() (layout.js) abra el login solo, en vez de dejar a medio
+    // camino cualquier pantalla que asumía que seguías logueado.
+    if (response.status === 401 && token) {
+      localStorage.removeItem('castamoto_token');
+      localStorage.removeItem('castamoto_user');
+      sessionStorage.setItem('castamoto_session_expired', '1');
+      window.location.reload();
+      return new Promise(() => {}); // no resuelve: la recarga ya está en camino
+    }
+
     const error = new Error(payload.message || 'Ocurrió un error.');
     error.fields = payload.errors || {};
     error.status = response.status;

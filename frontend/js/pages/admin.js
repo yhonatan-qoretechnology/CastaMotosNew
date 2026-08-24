@@ -1033,6 +1033,21 @@ function populateCategoryParentSelect(excludeId) {
     options.map((c) => `<option value="${c.id}">${'— '.repeat(c.depth)}${helpers.escapeHtml(c.name)}</option>`).join('');
 }
 
+/** Ícono actual (imagen real subida) o el genérico de siempre si todavía no tiene una. */
+function renderCategoryImagePreview(category) {
+  const img = document.getElementById('category-image-preview');
+  const placeholder = document.getElementById('category-image-placeholder');
+
+  if (category && category.image) {
+    img.src = helpers.mediaUrl('categories', category.image);
+    img.hidden = false;
+    placeholder.hidden = true;
+  } else {
+    img.hidden = true;
+    placeholder.hidden = false;
+  }
+}
+
 function openCategoryForm(category) {
   document.getElementById('category-form').reset();
   document.getElementById('category-form-error').textContent = '';
@@ -1044,6 +1059,13 @@ function openCategoryForm(category) {
   document.getElementById('category-sort-order').value = category ? category.sort_order : 0;
   document.getElementById('category-modal-title').textContent = category ? 'Editar categoría' : 'Nueva categoría';
   document.getElementById('category-submit-btn').textContent = category ? 'Guardar cambios' : 'Crear categoría';
+
+  // El ícono solo se puede subir a una categoría que YA existe (necesita su
+  // id) — mismo motivo que las fotos de servicio/producto.
+  document.getElementById('category-image-section').hidden = !category;
+  document.getElementById('category-image-hint').hidden = !!category;
+  if (category) renderCategoryImagePreview(category);
+
   document.getElementById('category-modal-overlay').classList.add('is-open');
 }
 
@@ -1072,17 +1094,48 @@ function wireCategoryManagement() {
     };
 
     try {
+      let category;
       if (id) {
-        await catalogService.updateCategory(id, payload);
+        category = await catalogService.updateCategory(id, payload);
         helpers.toast('Categoría actualizada.', 'success');
       } else {
-        await catalogService.createCategory(payload);
-        helpers.toast('Categoría creada.', 'success');
+        category = await catalogService.createCategory(payload);
+        helpers.toast('Categoría creada. Ahora podés subirle un ícono.', 'success');
       }
-      document.getElementById('category-modal-overlay').classList.remove('is-open');
+
+      // Igual que servicios/productos: tras crear, el formulario pasa a modo
+      // "edición" (sin cerrar el modal) para poder subir el ícono de una,
+      // ya que solo se puede asociar a una categoría que ya existe.
+      document.getElementById('category-id').value = category.id;
+      document.getElementById('category-modal-title').textContent = 'Editar categoría';
+      document.getElementById('category-submit-btn').textContent = 'Guardar cambios';
+      document.getElementById('category-image-section').hidden = false;
+      document.getElementById('category-image-hint').hidden = true;
+      renderCategoryImagePreview(category);
+
       loadCategoriesAdmin();
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('category-image-input').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    const categoryId = document.getElementById('category-id').value;
+    if (!file || !categoryId) return;
+
+    const errorBox = document.getElementById('category-form-error');
+    errorBox.textContent = '';
+
+    try {
+      const { image } = await catalogService.uploadCategoryImage(categoryId, file);
+      renderCategoryImagePreview({ image });
+      loadCategoriesAdmin();
+      helpers.toast('Ícono actualizado.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    } finally {
+      event.target.value = '';
     }
   });
 }
@@ -1668,6 +1721,8 @@ async function initAdminPage() {
   loadPaymentMethods();
   loadCoupons();
   loadSettingsTerms();
+  loadSettingsPrivacy();
+  loadSettingsContact();
   loadSettingsLogo();
   wireSettingsForm();
 }
@@ -1684,6 +1739,28 @@ async function loadSettingsTerms() {
     textarea.value = content || '';
   } catch (error) {
     document.getElementById('settings-terms-error').textContent = 'No fue posible cargar el contenido actual.';
+  }
+}
+
+/** Política de datos — mismo patrón que loadSettingsTerms(), ver /privacidad. */
+async function loadSettingsPrivacy() {
+  const textarea = document.getElementById('settings-privacy-content');
+  try {
+    const { content } = await settingsService.privacy();
+    textarea.value = content || '';
+  } catch (error) {
+    document.getElementById('settings-privacy-error').textContent = 'No fue posible cargar el contenido actual.';
+  }
+}
+
+/** Correo/WhatsApp públicos — mismos campos que expone GET /settings/public. */
+async function loadSettingsContact() {
+  try {
+    const settings = await settingsService.get();
+    document.getElementById('settings-contact-email').value = settings.contact_email || '';
+    document.getElementById('settings-contact-whatsapp').value = settings.contact_whatsapp_number || '';
+  } catch (error) {
+    document.getElementById('settings-contact-error').textContent = 'No fue posible cargar el contenido actual.';
   }
 }
 
@@ -1708,6 +1785,36 @@ function wireSettingsForm() {
     try {
       await adminService.updateTerms(document.getElementById('settings-terms-content').value);
       helpers.toast('Términos y condiciones actualizados.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('settings-privacy-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorBox = document.getElementById('settings-privacy-error');
+    errorBox.textContent = '';
+
+    try {
+      await adminService.updatePrivacyPolicy(document.getElementById('settings-privacy-content').value);
+      helpers.toast('Política de datos actualizada.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('settings-contact-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorBox = document.getElementById('settings-contact-error');
+    errorBox.textContent = '';
+
+    try {
+      await adminService.updateContactInfo({
+        contact_email: document.getElementById('settings-contact-email').value.trim(),
+        contact_whatsapp_number: document.getElementById('settings-contact-whatsapp').value.trim(),
+      });
+      settingsService._cache = null; // el botón de WhatsApp/correo público se refresca en la próxima carga de página
+      helpers.toast('Información de contacto actualizada.', 'success');
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
     }

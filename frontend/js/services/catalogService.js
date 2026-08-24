@@ -12,6 +12,11 @@ const catalogService = {
   categories: () => apiService.get('/categories'),
   createCategory: (payload) => apiService.post('/categories', payload),
   updateCategory: (id, payload) => apiService.put(`/categories/${id}`, payload),
+  uploadCategoryImage: (id, file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return apiService.post(`/categories/${id}/image`, formData, { isFormData: true });
+  },
   deleteCategory: (id) => apiService.del(`/categories/${id}`),
   brands: () => apiService.get('/brands'),
   createBrand: (payload) => apiService.post('/brands', payload),

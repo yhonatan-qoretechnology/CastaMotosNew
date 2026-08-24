@@ -29,5 +29,8 @@ interface CategoryRepositoryInterface
 
     public function update(int $id, array $data): void;
 
+    /** Ícono/imagen de la categoría (sección nueva, /admin → Categorías) — reemplaza el que hubiera. */
+    public function updateImage(int $id, string $filename): void;
+
     public function delete(int $id): void;
 }

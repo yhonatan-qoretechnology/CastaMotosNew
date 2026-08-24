@@ -50,6 +50,11 @@ final class MediaController
         $this->serveFrom('settings', $filename);
     }
 
+    public function categoryImage(Request $request, string $filename): void
+    {
+        $this->serveFrom('categories', $filename);
+    }
+
     private function serveFrom(string $subdirectory, string $filename): void
     {
         if (!preg_match('/^[a-f0-9]{32}\.(jpg|jpeg|png|webp|svg)$/i', $filename)) {

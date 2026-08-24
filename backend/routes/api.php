@@ -45,7 +45,10 @@ use App\Presentation\Middleware\RequirePermissionMiddleware;
 $router->get('api/health', [HealthController::class, 'index']);
 $router->get('api/settings/public', [SettingsController::class, 'publicSettings']);
 $router->get('api/settings/terms', [SettingsController::class, 'terms']);
+$router->get('api/settings/privacy', [SettingsController::class, 'privacyPolicy']);
 $router->put('api/admin/settings/terms', [SettingsController::class, 'updateTerms'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
+$router->put('api/admin/settings/privacy', [SettingsController::class, 'updatePrivacyPolicy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
+$router->put('api/admin/settings/contact', [SettingsController::class, 'updateContactInfo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->post('api/admin/settings/logo', [SettingsController::class, 'uploadLogo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 
 // --- Asistente de preguntas (Fase 11) — funciona para invitados ---
@@ -83,6 +86,7 @@ $router->get('api/categories', [CategoryController::class, 'index'], [new Option
 $router->get('api/categories/{slug}', [CategoryController::class, 'show'], [new OptionalAuthMiddleware()]);
 $router->post('api/categories', [CategoryController::class, 'store'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-categories')]);
 $router->put('api/categories/{id}', [CategoryController::class, 'update'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-categories')]);
+$router->post('api/categories/{id}/image', [CategoryController::class, 'uploadImage'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-categories')]);
 $router->delete('api/categories/{id}', [CategoryController::class, 'destroy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-categories')]);
 
 // --- Marcas (Fase 3 / sección 10) ---
@@ -183,3 +187,4 @@ $router->get('api/media/avatars/{filename}', [MediaController::class, 'avatar'])
 $router->get('api/media/products/{filename}', [MediaController::class, 'productImage']);
 $router->get('api/media/services/{filename}', [MediaController::class, 'serviceImage']);
 $router->get('api/media/settings/{filename}', [MediaController::class, 'siteLogo']);
+$router->get('api/media/categories/{filename}', [MediaController::class, 'categoryImage']);

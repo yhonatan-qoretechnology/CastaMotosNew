@@ -49,10 +49,41 @@ return new class extends Seeder {
         Este documento es una plantilla inicial y debe ser revisado por un asesor legal antes de considerarse definitivo.
         TEXT;
 
+        $privacy = <<<TEXT
+        Política de Datos de CASTAMOTO
+
+        Última actualización: 2026
+
+        1. Qué datos recopilamos
+        Nombre, correo, teléfono, direcciones de entrega y el historial de pedidos que generás al usar la plataforma — nunca más de lo necesario para procesar tu compra o reserva.
+
+        2. Para qué los usamos
+        Para procesar pedidos y reservas, contactarte sobre su estado, y mejorar el servicio. Nunca vendemos tus datos a terceros.
+
+        3. Con quién los compartimos
+        Solo con quienes hace falta para completar tu pedido (ej. la pasarela de pago que elijas, el transportador si aplica) — cada uno bajo sus propias políticas de privacidad.
+
+        4. Tus derechos
+        De acuerdo con la Ley 1581 de 2012 de Colombia (protección de datos personales), podés pedir acceder, corregir o eliminar tus datos escribiéndonos por los canales de contacto publicados en el sitio.
+
+        5. Seguridad
+        Tu contraseña nunca se guarda en texto plano, y las conexiones al sitio están cifradas.
+
+        Este documento es una plantilla inicial y debe ser revisado por un asesor legal antes de considerarse definitivo.
+        TEXT;
+
         $stmt = $connection->prepare(
             'INSERT INTO site_settings (setting_key, value) VALUES (:key, :value)
              ON DUPLICATE KEY UPDATE setting_key = setting_key'
         );
         $stmt->execute(['key' => 'terms_and_conditions', 'value' => $terms]);
+        $stmt->execute(['key' => 'privacy_policy', 'value' => $privacy]);
+
+        // El WhatsApp de contacto vivía SOLO en .env (CONTACT_WHATSAPP_NUMBER,
+        // sin editor en el admin) — se migra acá para que sea administrable
+        // como el resto, sembrando el valor que ya hubiera en .env (si lo hay)
+        // como punto de partida, sin perderlo.
+        $stmt->execute(['key' => 'contact_whatsapp_number', 'value' => $_ENV['CONTACT_WHATSAPP_NUMBER'] ?? '']);
+        $stmt->execute(['key' => 'contact_email', 'value' => $_ENV['MAIL_FROM_ADDRESS'] ?? '']);
     }
 };

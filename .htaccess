@@ -52,6 +52,7 @@ Options -Indexes
     RewriteRule ^perfil/?$ frontend/pages/perfil.html [L,QSA]
     RewriteRule ^pedidos/?$ frontend/pages/pedidos.html [L,QSA]
     RewriteRule ^terminos/?$ frontend/pages/terminos.html [L,QSA]
+    RewriteRule ^privacidad/?$ frontend/pages/privacidad.html [L,QSA]
     RewriteRule ^lavado/?$ frontend/pages/lavado.html [L,QSA]
     RewriteRule ^admin/?$ frontend/pages/admin.html [L,QSA]
 </IfModule>

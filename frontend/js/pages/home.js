@@ -24,10 +24,17 @@ async function loadHomeCategories() {
     // a -50% se ve exactamente igual que al arrancar en 0%, así que el loop
     // es perfecto sin ningún salto ni parpadeo. Se pausa al pasar el mouse
     // (o con foco de teclado) para poder leer/hacer click sin que se mueva.
+    // Ícono real subido (/admin → Categorías) si existe; si no, el genérico
+    // por slug de siempre (helpers.categoryIcon) — mismo criterio "foto real
+    // reemplaza al ícono/emoji" que ya se usa en cards.js y en el wizard de lavado.
+    const chipIcon = (cat) => (cat.image
+      ? `<img class="card__icon-img" src="${helpers.mediaUrl('categories', cat.image)}" alt="">`
+      : `<span class="card__icon">${helpers.categoryIcon(cat.slug)}</span>`);
+
     const chipMarkup = (cat) => `
       <a class="card category-chip" href="${helpers.categoryHref(cat)}">
         <div class="card__body text-center">
-          <span class="card__icon">${helpers.categoryIcon(cat.slug)}</span>
+          ${chipIcon(cat)}
           <span class="card__name">${helpers.escapeHtml(helpers.localized(cat, 'name'))}</span>
         </div>
       </a>

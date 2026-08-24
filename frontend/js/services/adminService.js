@@ -38,6 +38,8 @@ const adminService = {
 
   // Configuración general del sitio (permiso manage-settings).
   updateTerms: (content) => apiService.put('/admin/settings/terms', { content }),
+  updatePrivacyPolicy: (content) => apiService.put('/admin/settings/privacy', { content }),
+  updateContactInfo: (payload) => apiService.put('/admin/settings/contact', payload),
   uploadLogo: (file) => {
     const formData = new FormData();
     formData.append('logo', file);

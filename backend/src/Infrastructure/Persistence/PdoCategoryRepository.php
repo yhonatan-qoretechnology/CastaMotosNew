@@ -158,10 +158,15 @@ final class PdoCategoryRepository implements CategoryRepositoryInterface
 
     public function update(int $id, array $data): void
     {
+        // "image" queda AFUERA a propósito (a diferencia de create()): tiene su
+        // propio endpoint/flujo de subida (updateImage(), como avatar/logo del
+        // sitio) — si este UPDATE genérico también la tocara, cada vez que se
+        // edita nombre/estado/orden desde el formulario normal se borraría el
+        // ícono ya subido (el form no manda ese campo).
         $stmt = $this->connection->prepare(
             'UPDATE categories SET
                 parent_id = :parent_id, name = :name, slug = :slug, description = :description,
-                image = :image, status = :status, sort_order = :sort_order
+                status = :status, sort_order = :sort_order
              WHERE id = :id'
         );
         $stmt->execute([
@@ -169,11 +174,16 @@ final class PdoCategoryRepository implements CategoryRepositoryInterface
             'name' => $data['name'],
             'slug' => $data['slug'],
             'description' => $data['description'] ?? null,
-            'image' => $data['image'] ?? null,
             'status' => $data['status'] ?? 'active',
             'sort_order' => $data['sort_order'] ?? 0,
             'id' => $id,
         ]);
+    }
+
+    public function updateImage(int $id, string $filename): void
+    {
+        $stmt = $this->connection->prepare('UPDATE categories SET image = :image WHERE id = :id');
+        $stmt->execute(['image' => $filename, 'id' => $id]);
     }
 
     public function delete(int $id): void

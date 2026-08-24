@@ -7,9 +7,11 @@ namespace App\Presentation\Controllers;
 use App\Application\Support\AccessChecker;
 use App\Application\UseCases\Catalog\CreateCategoryUseCase;
 use App\Application\UseCases\Catalog\UpdateCategoryUseCase;
+use App\Application\UseCases\Catalog\UploadCategoryImageUseCase;
 use App\Application\Validation\Validator;
 use App\Domain\Entities\User;
 use App\Exceptions\NotFoundException;
+use App\Exceptions\ValidationException;
 use App\Infrastructure\Database\Connection;
 use App\Infrastructure\Http\Request;
 use App\Infrastructure\Http\Response;
@@ -72,6 +74,20 @@ final class CategoryController
         (new UpdateCategoryUseCase($this->categories))->handle((int) $id, $data);
 
         Response::success($this->categories->find((int) $id), 'Categoría actualizada correctamente.');
+    }
+
+    public function uploadImage(Request $request, string $id): void
+    {
+        $file = $request->file('image');
+        if ($file === null) {
+            throw new ValidationException('No fue posible subir la imagen.', [
+                'image' => ['Debes adjuntar un archivo con el campo "image".'],
+            ]);
+        }
+
+        $filename = (new UploadCategoryImageUseCase($this->categories))->handle((int) $id, $file);
+
+        Response::success(['image' => $filename], 'Imagen actualizada correctamente.');
     }
 
     public function destroy(Request $request, string $id): void

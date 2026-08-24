@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Controllers;
 
 use App\Application\UseCases\Settings\UploadSiteLogoUseCase;
+use App\Application\Validation\Validator;
 use App\Exceptions\ValidationException;
 use App\Infrastructure\Config\Config;
 use App\Infrastructure\Database\Connection;
@@ -26,7 +27,13 @@ final class SettingsController
         $settings = new PdoSiteSettingsRepository(Connection::get());
 
         Response::success([
-            'contact_whatsapp_number' => (string) Config::get('app.contact.whatsapp_number', ''),
+            // Administrables desde /admin → Configuración (site_settings, seeder
+            // 007) — .env queda solo como valor de arranque para el seeder, no
+            // como fuente de verdad en tiempo real (por eso el fallback a Config
+            // acá: cubre una base que corrió este seeder antes de que existieran
+            // estas dos claves).
+            'contact_whatsapp_number' => $settings->get('contact_whatsapp_number') ?? (string) Config::get('app.contact.whatsapp_number', ''),
+            'contact_email' => $settings->get('contact_email') ?? '',
             // Solo el nombre de archivo (igual que products.primary_image) — el
             // frontend arma la URL con helpers.mediaUrl('settings', ...). Null =
             // todavía no se subió ninguno, el frontend cae al logo estático.
@@ -57,6 +64,43 @@ final class SettingsController
         $settings->set('terms_and_conditions', $data['content']);
 
         Response::success(null, 'Términos y condiciones actualizados.');
+    }
+
+    public function privacyPolicy(Request $request): void
+    {
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+
+        Response::success([
+            'content' => $settings->get('privacy_policy') ?? '',
+        ]);
+    }
+
+    /** Edición desde /admin (permiso manage-settings) — el mismo texto que ya muestra /privacidad. */
+    public function updatePrivacyPolicy(Request $request): void
+    {
+        $data = Validator::make($request->input(), [
+            'content' => 'required',
+        ])->validate();
+
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+        $settings->set('privacy_policy', $data['content']);
+
+        Response::success(null, 'Política de datos actualizada.');
+    }
+
+    /** Correo y WhatsApp públicos (permiso manage-settings) — mismos campos que expone publicSettings(). */
+    public function updateContactInfo(Request $request): void
+    {
+        $data = Validator::make($request->input(), [
+            'contact_email' => 'email',
+            'contact_whatsapp_number' => 'max:30',
+        ])->validate();
+
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+        $settings->set('contact_email', $data['contact_email'] ?? '');
+        $settings->set('contact_whatsapp_number', $data['contact_whatsapp_number'] ?? '');
+
+        Response::success(null, 'Información de contacto actualizada.');
     }
 
     /** Logo del sitio (permiso manage-settings) — reemplaza el que hubiera. */

@@ -19,4 +19,7 @@ const settingsService = {
 
   /** Términos y condiciones (sección 6), guardados en la BD — ver /terminos. */
   terms: () => apiService.get('/settings/terms'),
+
+  /** Política de datos, guardada en la BD — ver /privacidad. */
+  privacy: () => apiService.get('/settings/privacy'),
 };
