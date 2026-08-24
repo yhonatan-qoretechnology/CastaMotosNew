@@ -24,6 +24,24 @@ final class EmailTemplates
         ];
     }
 
+    /** Backup de base de datos (/admin → Configuración) — el archivo va como adjunto, ver BackupController. */
+    public static function backupEmail(string $databaseName, int $tableCount, string $sizeLabel, string $adminUrl): array
+    {
+        $generatedAt = date('d/m/Y \a \l\a\s H:i');
+
+        return [
+            'subject' => "Backup de base de datos — {$databaseName} — " . date('Y-m-d H:i'),
+            'html' => self::layout(
+                'Backup de la base de datos',
+                "<p>Adjunto el backup completo de la base de datos <strong>{$databaseName}</strong>, generado el {$generatedAt}.</p>
+                <p>{$tableCount} tablas — {$sizeLabel} comprimido.</p>
+                <p style=\"color:#8a8a8a;font-size:13px;\">Guardalo en un lugar seguro. Podés generar uno nuevo cuando quieras desde /admin → Configuración.</p>",
+                $adminUrl,
+                'Ir al panel de administración'
+            ),
+        ];
+    }
+
     public static function passwordResetEmail(string $name, string $resetUrl): array
     {
         return [

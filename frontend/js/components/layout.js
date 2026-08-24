@@ -381,6 +381,10 @@ function authModalMarkup() {
             <input class="form-control" type="email" id="register-email" required>
           </div>
           <div class="form-group">
+            <label for="register-phone">${i18nService.t('auth.phone')}</label>
+            <input class="form-control" type="tel" id="register-phone" placeholder="Ej. 573001234567" required>
+          </div>
+          <div class="form-group">
             <label for="register-password">${i18nService.t('auth.password')}</label>
             <div class="password-field">
               <input class="form-control" type="password" id="register-password" minlength="8" required>
@@ -568,6 +572,7 @@ function initAuthModalEvents() {
         name: document.getElementById('register-name').value,
         last_name: document.getElementById('register-last-name').value,
         email: document.getElementById('register-email').value,
+        phone: document.getElementById('register-phone').value,
         password: document.getElementById('register-password').value,
         password_confirmation: document.getElementById('register-password-confirmation').value,
         terms_accepted: document.getElementById('register-terms').checked,

@@ -44,7 +44,7 @@ final class AuthController
             'name' => 'required|max:100',
             'last_name' => 'required|max:100',
             'email' => 'required|email|max:150',
-            'phone' => 'max:30',
+            'phone' => 'required|max:30',
             'password' => 'required|min:8|confirmed',
             'terms_accepted' => 'accepted',
         ])->validate();

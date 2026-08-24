@@ -67,9 +67,17 @@ final class AddCartItemUseCase
 
         // No todos los servicios se agendan con fecha/hora (sección nueva,
         // /admin → Servicios → "Requiere agendar fecha y hora") — los que no,
-        // se agregan al carrito como un item normal, scheduled_at queda NULL.
+        // se agregan al carrito como un item normal (mismo criterio que un
+        // producto: si ya estaba en el carrito, suma cantidad en la MISMA
+        // fila en vez de duplicarla — a diferencia de un servicio agendado,
+        // acá no hay fecha/hora que los distinga entre sí).
         if ((int) ($service['requires_scheduling'] ?? 1) === 0) {
-            $this->carts->addItem($cartId, null, $serviceId, $quantity, (float) $service['price'], null);
+            $existing = $this->carts->findExistingItem($cartId, null, $serviceId);
+            if ($existing !== null) {
+                $this->carts->updateItemQuantity((int) $existing['id'], (int) $existing['quantity'] + $quantity);
+            } else {
+                $this->carts->addItem($cartId, null, $serviceId, $quantity, (float) $service['price'], null);
+            }
             return;
         }
 

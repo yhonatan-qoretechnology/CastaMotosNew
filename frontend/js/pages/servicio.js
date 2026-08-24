@@ -221,6 +221,15 @@ function renderServiceDetail(service) {
     } else {
       document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
         try {
+          // Igual que en producto.js: si ya está en el carrito, se avisa en
+          // vez de sumarlo en silencio (el backend lo suma a la misma fila,
+          // nunca lo duplica — ver AddCartItemUseCase).
+          const cart = await cartService.get();
+          const existing = cart.items.find((item) => item.type === 'service' && item.reference_id === service.id);
+          if (existing && !window.confirm(`Ya tenés ${existing.quantity} de "${service.name}" en tu carrito. ¿Agregar 1 más?`)) {
+            return;
+          }
+
           await cartService.addItem({ service_id: service.id, quantity: 1 });
           helpers.toast('Servicio agregado al carrito.', 'success');
           refreshCartBadge();

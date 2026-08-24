@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Infrastructure\Http\Router;
 use App\Presentation\Controllers\AddressController;
 use App\Presentation\Controllers\AssistantController;
+use App\Presentation\Controllers\BackupController;
 use App\Presentation\Controllers\AdminInventoryController;
 use App\Presentation\Controllers\AdminCouponController;
 use App\Presentation\Controllers\AdminCustomerController;
@@ -50,6 +51,7 @@ $router->put('api/admin/settings/terms', [SettingsController::class, 'updateTerm
 $router->put('api/admin/settings/privacy', [SettingsController::class, 'updatePrivacyPolicy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->put('api/admin/settings/contact', [SettingsController::class, 'updateContactInfo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->put('api/admin/settings/business-hours', [SettingsController::class, 'updateBusinessHours'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
+$router->post('api/admin/backup', [BackupController::class, 'send'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->post('api/admin/settings/logo', [SettingsController::class, 'uploadLogo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 
 // --- Asistente de preguntas (Fase 11) — funciona para invitados ---

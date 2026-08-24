@@ -41,6 +41,9 @@ const adminService = {
   updatePrivacyPolicy: (content) => apiService.put('/admin/settings/privacy', { content }),
   updateContactInfo: (payload) => apiService.put('/admin/settings/contact', payload),
   updateBusinessHours: (payload) => apiService.put('/admin/settings/business-hours', payload),
+
+  // Backup de la base de datos por correo (permiso manage-settings).
+  sendBackup: () => apiService.post('/admin/backup'),
   uploadLogo: (file) => {
     const formData = new FormData();
     formData.append('logo', file);

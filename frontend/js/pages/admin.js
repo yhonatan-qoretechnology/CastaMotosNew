@@ -1886,6 +1886,24 @@ function wireSettingsForm() {
       event.target.value = '';
     }
   });
+
+  document.getElementById('settings-backup-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('settings-backup-btn');
+    const errorBox = document.getElementById('settings-backup-error');
+    errorBox.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Generando backup…';
+
+    try {
+      const result = await adminService.sendBackup();
+      helpers.toast(`Backup enviado a ${result.email}.`, 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📦 Generar y enviar backup';
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', initAdminPage);

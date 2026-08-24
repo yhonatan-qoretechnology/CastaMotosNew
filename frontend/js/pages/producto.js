@@ -205,6 +205,15 @@ function wireProductDetailEvents(product) {
   document.getElementById('add-to-cart-btn')?.addEventListener('click', async () => {
     const quantity = Number(document.getElementById('add-quantity').value) || 1;
     try {
+      // Si ya está en el carrito, se lo avisa en vez de sumarlo en silencio
+      // — el backend igual lo suma a la misma fila (nunca lo duplica), esto
+      // es solo para que no se lleve una sorpresa con la cantidad final.
+      const cart = await cartService.get();
+      const existing = cart.items.find((item) => item.type === 'product' && item.reference_id === product.id);
+      if (existing && !window.confirm(`Ya tenés ${existing.quantity} de "${product.name}" en tu carrito. ¿Agregar ${quantity} más?`)) {
+        return;
+      }
+
       await cartService.addItem({ product_id: product.id, quantity });
       helpers.toast('Producto agregado al carrito.', 'success');
       refreshCartBadge();
