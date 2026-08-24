@@ -18,5 +18,8 @@ interface BrandRepositoryInterface
 
     public function update(int $id, array $data): void;
 
+    /** Logo de la marca (sección nueva, /admin → Marcas) — reemplaza el que hubiera. */
+    public function updateLogo(int $id, string $filename): void;
+
     public function delete(int $id): void;
 }

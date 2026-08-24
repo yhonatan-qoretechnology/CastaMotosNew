@@ -56,19 +56,74 @@ function purchaseBoxMarkup(service) {
   return `
     <div class="purchase-box mt-16">
       <p style="font-weight:700;margin:0 0 10px;">📅 Reservar este servicio</p>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="reservation-date">Fecha</label>
-          <input type="date" class="form-control" id="reservation-date">
-        </div>
-        <div class="form-group">
-          <label for="reservation-time">Hora</label>
-          <input type="time" class="form-control" id="reservation-time">
+      <div class="form-group">
+        <label for="reservation-date">Fecha</label>
+        <input type="date" class="form-control" id="reservation-date" style="max-width:220px;">
+      </div>
+      <div class="form-group">
+        <label>Hora</label>
+        <div id="reservation-time-slots" class="wash-time-slots">
+          <p class="loading-state">Elegí una fecha para ver los horarios disponibles.</p>
         </div>
       </div>
-      <button class="btn btn-primary btn-block" id="add-service-to-cart-btn">Agendar servicio</button>
+      <button class="btn btn-primary btn-block" id="add-service-to-cart-btn" disabled>Agendar servicio</button>
     </div>
   `;
+}
+
+// Horario elegido en la grilla de abajo — no un <input type="time"> nativo
+// a propósito: ese control depende del idioma/SO del navegador y en varios
+// no deja claro si la hora es AM o PM (justo el problema reportado). Con
+// botones en formato 24h ("14:00") no hay ambigüedad posible, mismo
+// mecanismo que ya usa el wizard de lavado (lavado.js).
+let selectedReservationTime = '';
+
+/** Igual que loadWashTimeSlots() en lavado.js — grilla del horario de
+ * atención configurable, marcando como no disponibles los horarios ya
+ * ocupados de este servicio en la fecha elegida. */
+async function loadServiceTimeSlots(service, date) {
+  const mount = document.getElementById('reservation-time-slots');
+  mount.innerHTML = '<p class="loading-state">Cargando horarios…</p>';
+  selectedReservationTime = '';
+  document.getElementById('add-service-to-cart-btn').disabled = true;
+
+  try {
+    const [booked, settings] = await Promise.all([
+      catalogService.serviceBookedTimes(service.id, date),
+      settingsService.get(),
+    ]);
+    const businessHours = helpers.generateHourlySlots(settings.business_hours_start || '08:30', settings.business_hours_end || '16:30');
+    const isToday = date === new Date().toISOString().slice(0, 10);
+    const nowHour = new Date().getHours();
+
+    mount.innerHTML = `
+      <div class="wash-time-grid">
+        ${businessHours.map((time) => {
+          const isBooked = booked.includes(time);
+          const isPast = isToday && Number(time.slice(0, 2)) <= nowHour;
+          const disabled = isBooked || isPast;
+          return `
+            <button type="button" class="wash-time-slot ${disabled ? 'is-disabled' : ''}"
+                    data-time="${time}" ${disabled ? 'disabled' : ''} title="${isBooked ? 'Ya reservado' : isPast ? 'Hora pasada' : ''}">
+              ${time}
+            </button>
+          `;
+        }).join('')}
+      </div>
+      ${booked.length === businessHours.length ? '<p class="error-state mt-16">No quedan horarios libres este día — probá con otra fecha.</p>' : ''}
+    `;
+
+    mount.querySelectorAll('.wash-time-slot:not(.is-disabled)').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedReservationTime = btn.dataset.time;
+        mount.querySelectorAll('.wash-time-slot').forEach((el) => el.classList.remove('is-selected'));
+        btn.classList.add('is-selected');
+        document.getElementById('add-service-to-cart-btn').disabled = false;
+      });
+    });
+  } catch (error) {
+    mount.innerHTML = '<p class="error-state">No fue posible cargar los horarios disponibles.</p>';
+  }
 }
 
 function renderServiceDetail(service) {
@@ -122,19 +177,22 @@ function renderServiceDetail(service) {
 
   if (serviceRequiresScheduling(service)) {
     // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
-    document.getElementById('reservation-date').min = new Date().toISOString().slice(0, 10);
+    const dateInput = document.getElementById('reservation-date');
+    dateInput.min = new Date().toISOString().slice(0, 10);
+    dateInput.addEventListener('change', () => {
+      if (dateInput.value) loadServiceTimeSlots(service, dateInput.value);
+    });
 
     document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
-      const date = document.getElementById('reservation-date').value;
-      const time = document.getElementById('reservation-time').value;
+      const date = dateInput.value;
 
-      if (!date || !time) {
+      if (!date || !selectedReservationTime) {
         helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
         return;
       }
 
       try {
-        await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${time}:00` });
+        await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${selectedReservationTime}:00` });
         helpers.toast('Servicio agendado y agregado al carrito.', 'success');
         refreshCartBadge();
       } catch (error) {

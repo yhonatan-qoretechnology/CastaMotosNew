@@ -40,6 +40,7 @@ const adminService = {
   updateTerms: (content) => apiService.put('/admin/settings/terms', { content }),
   updatePrivacyPolicy: (content) => apiService.put('/admin/settings/privacy', { content }),
   updateContactInfo: (payload) => apiService.put('/admin/settings/contact', payload),
+  updateBusinessHours: (payload) => apiService.put('/admin/settings/business-hours', payload),
   uploadLogo: (file) => {
     const formData = new FormData();
     formData.append('logo', file);

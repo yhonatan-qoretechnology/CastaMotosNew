@@ -41,6 +41,10 @@ final class SettingsController
             // Público a propósito (ver GOOGLE_CLIENT_ID en config/app.php) —
             // vacío = el botón "Continuar con Google" no se muestra.
             'google_client_id' => (string) Config::get('app.auth.google_client_id', ''),
+            // Horario de atención — arma la grilla de horas de lavado.js/servicio.js
+            // (cada hora, de start a end incluido) y se muestra en la portada.
+            'business_hours_start' => $settings->get('business_hours_start') ?? '08:30',
+            'business_hours_end' => $settings->get('business_hours_end') ?? '16:30',
         ]);
     }
 
@@ -101,6 +105,33 @@ final class SettingsController
         $settings->set('contact_whatsapp_number', $data['contact_whatsapp_number'] ?? '');
 
         Response::success(null, 'Información de contacto actualizada.');
+    }
+
+    /** Horario de atención (permiso manage-settings) — mismos campos que expone publicSettings(). */
+    public function updateBusinessHours(Request $request): void
+    {
+        $data = Validator::make($request->input(), [
+            'business_hours_start' => 'required|max:5',
+            'business_hours_end' => 'required|max:5',
+        ])->validate();
+
+        $timePattern = '/^([01]\d|2[0-3]):[0-5]\d$/';
+        if (!preg_match($timePattern, $data['business_hours_start']) || !preg_match($timePattern, $data['business_hours_end'])) {
+            throw new ValidationException('Los datos enviados no son válidos.', [
+                'business_hours_start' => ['La hora debe tener formato HH:MM (ej. 08:30).'],
+            ]);
+        }
+        if ($data['business_hours_start'] >= $data['business_hours_end']) {
+            throw new ValidationException('Los datos enviados no son válidos.', [
+                'business_hours_end' => ['La hora de cierre debe ser posterior a la de apertura.'],
+            ]);
+        }
+
+        $settings = new PdoSiteSettingsRepository(Connection::get());
+        $settings->set('business_hours_start', $data['business_hours_start']);
+        $settings->set('business_hours_end', $data['business_hours_end']);
+
+        Response::success(null, 'Horario de atención actualizado.');
     }
 
     /** Logo del sitio (permiso manage-settings) — reemplaza el que hubiera. */

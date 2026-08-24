@@ -49,6 +49,7 @@ $router->get('api/settings/privacy', [SettingsController::class, 'privacyPolicy'
 $router->put('api/admin/settings/terms', [SettingsController::class, 'updateTerms'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->put('api/admin/settings/privacy', [SettingsController::class, 'updatePrivacyPolicy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->put('api/admin/settings/contact', [SettingsController::class, 'updateContactInfo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
+$router->put('api/admin/settings/business-hours', [SettingsController::class, 'updateBusinessHours'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 $router->post('api/admin/settings/logo', [SettingsController::class, 'uploadLogo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-settings')]);
 
 // --- Asistente de preguntas (Fase 11) — funciona para invitados ---
@@ -93,6 +94,7 @@ $router->delete('api/categories/{id}', [CategoryController::class, 'destroy'], [
 $router->get('api/brands', [BrandController::class, 'index'], [new OptionalAuthMiddleware()]);
 $router->post('api/brands', [BrandController::class, 'store'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-brands')]);
 $router->put('api/brands/{id}', [BrandController::class, 'update'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-brands')]);
+$router->post('api/brands/{id}/logo', [BrandController::class, 'uploadLogo'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-brands')]);
 $router->delete('api/brands/{id}', [BrandController::class, 'destroy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-brands')]);
 
 // Proveedores (admin, agenda interna) — a diferencia de brands, ni el index es público.
@@ -188,3 +190,4 @@ $router->get('api/media/products/{filename}', [MediaController::class, 'productI
 $router->get('api/media/services/{filename}', [MediaController::class, 'serviceImage']);
 $router->get('api/media/settings/{filename}', [MediaController::class, 'siteLogo']);
 $router->get('api/media/categories/{filename}', [MediaController::class, 'categoryImage']);
+$router->get('api/media/brands/{filename}', [MediaController::class, 'brandLogo']);

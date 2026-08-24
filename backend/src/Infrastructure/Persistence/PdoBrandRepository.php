@@ -74,16 +74,25 @@ final class PdoBrandRepository implements BrandRepositoryInterface
 
     public function update(int $id, array $data): void
     {
+        // "logo" queda AFUERA a propósito (igual que categories.image) — tiene
+        // su propio endpoint de subida (updateLogo()); si este UPDATE genérico
+        // también lo tocara, editar nombre/estado desde el formulario normal
+        // borraría el logo ya subido (el form no manda ese campo).
         $stmt = $this->connection->prepare(
-            'UPDATE brands SET name = :name, slug = :slug, logo = :logo, status = :status WHERE id = :id'
+            'UPDATE brands SET name = :name, slug = :slug, status = :status WHERE id = :id'
         );
         $stmt->execute([
             'name' => $data['name'],
             'slug' => $data['slug'],
-            'logo' => $data['logo'] ?? null,
             'status' => $data['status'] ?? 'active',
             'id' => $id,
         ]);
+    }
+
+    public function updateLogo(int $id, string $filename): void
+    {
+        $stmt = $this->connection->prepare('UPDATE brands SET logo = :logo WHERE id = :id');
+        $stmt->execute(['logo' => $filename, 'id' => $id]);
     }
 
     public function delete(int $id): void

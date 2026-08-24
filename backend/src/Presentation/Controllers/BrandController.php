@@ -6,9 +6,11 @@ namespace App\Presentation\Controllers;
 
 use App\Application\Support\AccessChecker;
 use App\Application\Support\SlugGenerator;
+use App\Application\UseCases\Catalog\UploadBrandLogoUseCase;
 use App\Application\Validation\Validator;
 use App\Domain\Entities\User;
 use App\Exceptions\NotFoundException;
+use App\Exceptions\ValidationException;
 use App\Infrastructure\Database\Connection;
 use App\Infrastructure\Http\Request;
 use App\Infrastructure\Http\Response;
@@ -67,6 +69,20 @@ final class BrandController
         $this->brands->update((int) $id, $data);
 
         Response::success($this->brands->find((int) $id), 'Marca actualizada correctamente.');
+    }
+
+    public function uploadLogo(Request $request, string $id): void
+    {
+        $file = $request->file('logo');
+        if ($file === null) {
+            throw new ValidationException('No fue posible subir el logo.', [
+                'logo' => ['Debes adjuntar un archivo con el campo "logo".'],
+            ]);
+        }
+
+        $filename = (new UploadBrandLogoUseCase($this->brands))->handle((int) $id, $file);
+
+        Response::success(['logo' => $filename], 'Logo actualizado correctamente.');
     }
 
     public function destroy(Request $request, string $id): void

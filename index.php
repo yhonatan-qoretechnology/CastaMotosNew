@@ -17,9 +17,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260823c">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260823f">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260823c"></script>
+<script src="frontend/js/theme-init.js?v=20260823f"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -99,23 +99,24 @@
       <div class="card"><div class="card__body text-center"><strong style="color:var(--amarillo);" data-i18n="home.trust.secure">🔒 Compra segura</strong><p class="card__meta" data-i18n="home.trust.secureDesc">Datos protegidos en cada pedido.</p></div></div>
       <div class="card"><div class="card__body text-center"><strong style="color:var(--amarillo);" data-i18n="home.trust.shipping">🚚 Envíos a todo Manizales</strong><p class="card__meta" data-i18n="home.trust.shippingDesc">Entrega a domicilio o recogida en tienda. Otra ciudad: consultanos por WhatsApp.</p></div></div>
       <div class="card"><div class="card__body text-center"><strong style="color:var(--amarillo);" data-i18n="home.trust.support">💬 Soporte especializado</strong><p class="card__meta" data-i18n="home.trust.supportDesc">Servicios realizados por profesionales.</p></div></div>
+      <div class="card"><div class="card__body text-center"><strong style="color:var(--amarillo);" data-i18n="home.trust.hours">🕐 Horario de atención</strong><p class="card__meta" id="home-business-hours">Cargando…</p></div></div>
     </div>
   </section>
 </main>
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260823c"></script>
-<script src="frontend/js/utils/helpers.js?v=20260823c"></script>
-<script src="frontend/js/services/apiService.js?v=20260823c"></script>
-<script src="frontend/js/services/authService.js?v=20260823c"></script>
-<script src="frontend/js/services/catalogService.js?v=20260823c"></script>
-<script src="frontend/js/services/cartService.js?v=20260823c"></script>
-<script src="frontend/js/services/themeService.js?v=20260823c"></script>
-<script src="frontend/js/services/settingsService.js?v=20260823c"></script>
-<script src="frontend/js/services/notificationService.js?v=20260823c"></script>
-<script src="frontend/js/components/layout.js?v=20260823c"></script>
-<script src="frontend/js/components/cards.js?v=20260823c"></script>
-<script src="frontend/js/pages/home.js?v=20260823c"></script>
+<script src="frontend/js/i18n.js?v=20260823f"></script>
+<script src="frontend/js/utils/helpers.js?v=20260823f"></script>
+<script src="frontend/js/services/apiService.js?v=20260823f"></script>
+<script src="frontend/js/services/authService.js?v=20260823f"></script>
+<script src="frontend/js/services/catalogService.js?v=20260823f"></script>
+<script src="frontend/js/services/cartService.js?v=20260823f"></script>
+<script src="frontend/js/services/themeService.js?v=20260823f"></script>
+<script src="frontend/js/services/settingsService.js?v=20260823f"></script>
+<script src="frontend/js/services/notificationService.js?v=20260823f"></script>
+<script src="frontend/js/components/layout.js?v=20260823f"></script>
+<script src="frontend/js/components/cards.js?v=20260823f"></script>
+<script src="frontend/js/pages/home.js?v=20260823f"></script>
 </body>
 </html>

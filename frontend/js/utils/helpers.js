@@ -64,6 +64,27 @@ const helpers = {
    * cargados. Esa categoría puntual va a /servicios en cambio (que sí sabe
    * filtrar por categoría — ver servicios.js).
    */
+  /**
+   * Arma la grilla de horarios (cada hora, de "start" a "end" incluido —
+   * ej. "08:30".."16:30" → 9 franjas) a partir del horario de atención
+   * configurable (/admin → Configuración, ver settingsService.get()). Antes
+   * esto vivía hardcodeado como WASH_BUSINESS_HOURS en lavado.js.
+   */
+  generateHourlySlots(start, end) {
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+
+    const slots = [];
+    for (let m = startMinutes; m <= endMinutes; m += 60) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      slots.push(`${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    }
+    return slots;
+  },
+
   categoryHref(category) {
     if (category.slug === 'servicios') {
       return `servicios?category=${encodeURIComponent(category.slug)}`;

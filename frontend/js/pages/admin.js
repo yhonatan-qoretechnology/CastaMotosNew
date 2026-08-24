@@ -1059,12 +1059,7 @@ function openCategoryForm(category) {
   document.getElementById('category-sort-order').value = category ? category.sort_order : 0;
   document.getElementById('category-modal-title').textContent = category ? 'Editar categoría' : 'Nueva categoría';
   document.getElementById('category-submit-btn').textContent = category ? 'Guardar cambios' : 'Crear categoría';
-
-  // El ícono solo se puede subir a una categoría que YA existe (necesita su
-  // id) — mismo motivo que las fotos de servicio/producto.
-  document.getElementById('category-image-section').hidden = !category;
-  document.getElementById('category-image-hint').hidden = !!category;
-  if (category) renderCategoryImagePreview(category);
+  renderCategoryImagePreview(category);
 
   document.getElementById('category-modal-overlay').classList.add('is-open');
 }
@@ -1097,45 +1092,32 @@ function wireCategoryManagement() {
       let category;
       if (id) {
         category = await catalogService.updateCategory(id, payload);
-        helpers.toast('Categoría actualizada.', 'success');
       } else {
         category = await catalogService.createCategory(payload);
-        helpers.toast('Categoría creada. Ahora podés subirle un ícono.', 'success');
       }
 
-      // Igual que servicios/productos: tras crear, el formulario pasa a modo
-      // "edición" (sin cerrar el modal) para poder subir el ícono de una,
-      // ya que solo se puede asociar a una categoría que ya existe.
+      // El ícono se sube en el mismo paso que el resto del formulario (crear
+      // o editar) — solo hace falta el id de la categoría para subirlo, que
+      // recién existe DESPUÉS de crearla, por eso va acá y no antes.
+      const imageFile = document.getElementById('category-image-input').files[0];
+      if (imageFile) {
+        const { image } = await catalogService.uploadCategoryImage(category.id, imageFile);
+        category.image = image;
+      }
+
+      helpers.toast(id ? 'Categoría actualizada.' : 'Categoría creada.', 'success');
+
+      // Pasa a modo "edición" de la categoría recién creada (sin cerrar el
+      // modal) — mismo patrón que servicios/productos.
       document.getElementById('category-id').value = category.id;
       document.getElementById('category-modal-title').textContent = 'Editar categoría';
       document.getElementById('category-submit-btn').textContent = 'Guardar cambios';
-      document.getElementById('category-image-section').hidden = false;
-      document.getElementById('category-image-hint').hidden = true;
+      document.getElementById('category-image-input').value = '';
       renderCategoryImagePreview(category);
 
       loadCategoriesAdmin();
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
-    }
-  });
-
-  document.getElementById('category-image-input').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    const categoryId = document.getElementById('category-id').value;
-    if (!file || !categoryId) return;
-
-    const errorBox = document.getElementById('category-form-error');
-    errorBox.textContent = '';
-
-    try {
-      const { image } = await catalogService.uploadCategoryImage(categoryId, file);
-      renderCategoryImagePreview({ image });
-      loadCategoriesAdmin();
-      helpers.toast('Ícono actualizado.', 'success');
-    } catch (error) {
-      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
-    } finally {
-      event.target.value = '';
     }
   });
 }
@@ -1156,7 +1138,7 @@ async function loadBrands() {
     body.innerHTML = brands.map((brand) => `
       <tr data-brand-id="${brand.id}">
         <td>${helpers.escapeHtml(brand.name)}</td>
-        <td>${brand.logo ? `<img src="${helpers.escapeHtml(brand.logo)}" alt="" style="height:28px;width:auto;border-radius:4px;">` : '—'}</td>
+        <td>${brand.logo ? `<img src="${helpers.mediaUrl('brands', brand.logo)}" alt="" style="height:28px;width:auto;border-radius:4px;">` : '—'}</td>
         <td><span class="status-badge ${brand.status === 'active' ? 'is-final-good' : ''}">${brand.status === 'active' ? 'Activa' : 'Inactiva'}</span></td>
         <td>
           <div class="flex gap-8">
@@ -1193,15 +1175,30 @@ async function loadBrands() {
   }
 }
 
+/** Logo real subido, o el ícono genérico si la marca todavía no tiene uno. */
+function renderBrandLogoPreview(brand) {
+  const img = document.getElementById('brand-logo-preview');
+  const placeholder = document.getElementById('brand-logo-placeholder');
+
+  if (brand && brand.logo) {
+    img.src = helpers.mediaUrl('brands', brand.logo);
+    img.hidden = false;
+    placeholder.hidden = true;
+  } else {
+    img.hidden = true;
+    placeholder.hidden = false;
+  }
+}
+
 function openBrandForm(brand) {
   document.getElementById('brand-form').reset();
   document.getElementById('brand-form-error').textContent = '';
   document.getElementById('brand-id').value = brand ? brand.id : '';
   document.getElementById('brand-name').value = brand ? brand.name : '';
-  document.getElementById('brand-logo').value = brand ? (brand.logo || '') : '';
   document.getElementById('brand-status').value = brand ? brand.status : 'active';
   document.getElementById('brand-modal-title').textContent = brand ? 'Editar marca' : 'Nueva marca';
   document.getElementById('brand-submit-btn').textContent = brand ? 'Guardar cambios' : 'Crear marca';
+  renderBrandLogoPreview(brand);
   document.getElementById('brand-modal-overlay').classList.add('is-open');
 }
 
@@ -1224,19 +1221,35 @@ function wireBrandManagement() {
     const id = document.getElementById('brand-id').value;
     const payload = {
       name: document.getElementById('brand-name').value.trim(),
-      logo: document.getElementById('brand-logo').value.trim() || undefined,
       status: document.getElementById('brand-status').value,
     };
 
     try {
+      let brand;
       if (id) {
-        await catalogService.updateBrand(id, payload);
-        helpers.toast('Marca actualizada.', 'success');
+        brand = await catalogService.updateBrand(id, payload);
       } else {
-        await catalogService.createBrand(payload);
-        helpers.toast('Marca creada.', 'success');
+        brand = await catalogService.createBrand(payload);
       }
-      document.getElementById('brand-modal-overlay').classList.remove('is-open');
+
+      // El logo se sube en el mismo paso que el resto del formulario — solo
+      // hace falta el id de la marca, que recién existe después de crearla.
+      const logoFile = document.getElementById('brand-logo-input').files[0];
+      if (logoFile) {
+        const { logo } = await catalogService.uploadBrandLogo(brand.id, logoFile);
+        brand.logo = logo;
+      }
+
+      helpers.toast(id ? 'Marca actualizada.' : 'Marca creada.', 'success');
+
+      // Pasa a modo "edición" de la marca recién creada (sin cerrar el modal)
+      // — mismo patrón que categorías/servicios/productos.
+      document.getElementById('brand-id').value = brand.id;
+      document.getElementById('brand-modal-title').textContent = 'Editar marca';
+      document.getElementById('brand-submit-btn').textContent = 'Guardar cambios';
+      document.getElementById('brand-logo-input').value = '';
+      renderBrandLogoPreview(brand);
+
       loadBrands();
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
@@ -1723,6 +1736,7 @@ async function initAdminPage() {
   loadSettingsTerms();
   loadSettingsPrivacy();
   loadSettingsContact();
+  loadSettingsHours();
   loadSettingsLogo();
   wireSettingsForm();
 }
@@ -1761,6 +1775,17 @@ async function loadSettingsContact() {
     document.getElementById('settings-contact-whatsapp').value = settings.contact_whatsapp_number || '';
   } catch (error) {
     document.getElementById('settings-contact-error').textContent = 'No fue posible cargar el contenido actual.';
+  }
+}
+
+/** Horario de atención — arma los horarios de lavado.js/servicio.js y se muestra en la portada. */
+async function loadSettingsHours() {
+  try {
+    const settings = await settingsService.get();
+    document.getElementById('settings-hours-start').value = settings.business_hours_start || '08:30';
+    document.getElementById('settings-hours-end').value = settings.business_hours_end || '16:30';
+  } catch (error) {
+    document.getElementById('settings-hours-error').textContent = 'No fue posible cargar el contenido actual.';
   }
 }
 
@@ -1815,6 +1840,23 @@ function wireSettingsForm() {
       });
       settingsService._cache = null; // el botón de WhatsApp/correo público se refresca en la próxima carga de página
       helpers.toast('Información de contacto actualizada.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('settings-hours-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorBox = document.getElementById('settings-hours-error');
+    errorBox.textContent = '';
+
+    try {
+      await adminService.updateBusinessHours({
+        business_hours_start: document.getElementById('settings-hours-start').value,
+        business_hours_end: document.getElementById('settings-hours-end').value,
+      });
+      settingsService._cache = null; // el wizard de lavado y la portada lo vuelven a pedir en la próxima carga
+      helpers.toast('Horario de atención actualizado.', 'success');
     } catch (error) {
       errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
     }

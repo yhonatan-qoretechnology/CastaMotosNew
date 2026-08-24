@@ -85,5 +85,13 @@ return new class extends Seeder {
         // como punto de partida, sin perderlo.
         $stmt->execute(['key' => 'contact_whatsapp_number', 'value' => $_ENV['CONTACT_WHATSAPP_NUMBER'] ?? '']);
         $stmt->execute(['key' => 'contact_email', 'value' => $_ENV['MAIL_FROM_ADDRESS'] ?? '']);
+
+        // Horario de atención (sección nueva) — arma la grilla de horarios de
+        // lavado.js/servicio.js (cada hora, de start a end incluido) y se
+        // muestra en la portada. Antes vivía hardcodeado en el frontend
+        // (WASH_BUSINESS_HOURS: 08:00 a 17:00) — ahora es editable desde
+        // /admin → Configuración, sin tocar código.
+        $stmt->execute(['key' => 'business_hours_start', 'value' => '08:30']);
+        $stmt->execute(['key' => 'business_hours_end', 'value' => '16:30']);
     }
 };

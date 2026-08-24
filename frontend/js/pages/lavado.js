@@ -247,8 +247,11 @@ async function renderStep() {
   }
 }
 
-/** Horario de atención asumido para armar la grilla — 08:00 a 17:00, cada hora. */
-const WASH_BUSINESS_HOURS = Array.from({ length: 10 }, (_, i) => String(8 + i).padStart(2, '0') + ':00');
+/** Horario de atención configurable (/admin → Configuración) — antes era fijo acá (08:00 a 17:00). */
+async function washBusinessHours() {
+  const settings = await settingsService.get();
+  return helpers.generateHourlySlots(settings.business_hours_start || '08:30', settings.business_hours_end || '16:30');
+}
 
 /**
  * Trae los horarios YA ocupados de este servicio en la fecha elegida
@@ -263,13 +266,16 @@ async function loadWashTimeSlots() {
   mount.innerHTML = '<p class="loading-state">Cargando horarios…</p>';
 
   try {
-    const booked = await catalogService.serviceBookedTimes(washState.service.id, washState.date);
+    const [booked, businessHours] = await Promise.all([
+      catalogService.serviceBookedTimes(washState.service.id, washState.date),
+      washBusinessHours(),
+    ]);
     const isToday = washState.date === new Date().toISOString().slice(0, 10);
     const nowHour = new Date().getHours();
 
     mount.innerHTML = `
       <div class="wash-time-grid">
-        ${WASH_BUSINESS_HOURS.map((time) => {
+        ${businessHours.map((time) => {
           const isBooked = booked.includes(time);
           const isPast = isToday && Number(time.slice(0, 2)) <= nowHour;
           const disabled = isBooked || isPast;
@@ -281,7 +287,7 @@ async function loadWashTimeSlots() {
           `;
         }).join('')}
       </div>
-      ${booked.length === WASH_BUSINESS_HOURS.length ? '<p class="error-state mt-16">No quedan horarios libres este día — probá con otra fecha.</p>' : ''}
+      ${booked.length === businessHours.length ? '<p class="error-state mt-16">No quedan horarios libres este día — probá con otra fecha.</p>' : ''}
     `;
 
     mount.querySelectorAll('.wash-time-slot:not(.is-disabled)').forEach((btn) => {
@@ -297,6 +303,33 @@ async function loadWashTimeSlots() {
   }
 }
 
+/**
+ * El pago del lavado es en el local, no online (a diferencia de un pedido
+ * normal) — por eso este wizard NO manda al checkout como antes: agenda el
+ * servicio y confirma el pedido acá mismo con el método "Efectivo" (siempre
+ * disponible, sin configuración — ver CashPaymentGateway), sin pedirle al
+ * cliente que elija dirección/pago para algo que retira en persona.
+ *
+ * "checkout" igual exige una dirección real en el pedido (address_id NOT
+ * NULL) aunque sea retiro en tienda — si el cliente no tiene ninguna
+ * guardada, se crea una automáticamente con los datos del local, en vez de
+ * obligarlo a cargar una dirección de ENTREGA para algo que no se entrega.
+ */
+async function resolvePickupAddressId() {
+  if (washState.primaryAddress) return washState.primaryAddress.id;
+
+  const address = await cartService.createAddress({
+    recipient_name: washState.name,
+    phone: washState.phone,
+    country: 'Colombia',
+    state: 'Caldas',
+    city: 'Manizales',
+    address_line: 'Retiro en el local — CRA 20 #17-35',
+    reference: 'Dirección generada automáticamente para reservas con retiro en tienda.',
+  });
+  return address.id;
+}
+
 async function confirmReservation() {
   if (!authService.isAuthenticated()) {
     helpers.toast('Inicia sesión para completar tu reserva.', 'error');
@@ -307,6 +340,10 @@ async function confirmReservation() {
   const errorBox = document.getElementById('wash-error');
   errorBox.textContent = '';
 
+  const confirmBtn = document.getElementById('wash-confirm-btn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Reservando…';
+
   try {
     await cartService.addItem({
       service_id: washState.service.id,
@@ -314,16 +351,32 @@ async function confirmReservation() {
       scheduled_at: `${washState.date} ${washState.time}:00`,
     });
 
-    // El celular/placa/observaciones van como nota del pedido — checkout.js
-    // precarga este texto en el campo de notas (ver ?note= ahí) para que
-    // quede registrado en el pedido sin duplicar campos que el sistema de
-    // reservas ya cubre (nombre/fecha ya están en la reserva misma).
+    const paymentMethods = await cartService.paymentMethods();
+    const cashMethod = paymentMethods.find((method) => method.code === 'cash');
+    if (!cashMethod) {
+      throw new Error('El pago en efectivo no está disponible — contactanos para completar la reserva.');
+    }
+
+    const addressId = await resolvePickupAddressId();
+
+    // El celular/placa/observaciones van como nota del pedido — nombre y
+    // fecha ya quedan cubiertos por la reserva misma (scheduled_at).
     const noteParts = [`Tel: ${washState.phone}`, `Placa: ${washState.plate}`];
     if (washState.itemNote) noteParts.push(washState.itemNote);
 
-    window.location.href = 'checkout?note=' + encodeURIComponent(noteParts.join(' — '));
+    await cartService.checkout({
+      address_id: addressId,
+      payment_method_id: cashMethod.id,
+      delivery_method: 'recogida_tienda',
+      notes: noteParts.join(' — '),
+    });
+
+    helpers.toast('¡Reserva confirmada! Pagás en el local al llegar.', 'success');
+    window.location.href = '.';
   } catch (error) {
     errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Reservar';
   }
 }
 

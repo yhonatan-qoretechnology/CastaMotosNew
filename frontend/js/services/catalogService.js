@@ -21,6 +21,11 @@ const catalogService = {
   brands: () => apiService.get('/brands'),
   createBrand: (payload) => apiService.post('/brands', payload),
   updateBrand: (id, payload) => apiService.put(`/brands/${id}`, payload),
+  uploadBrandLogo: (id, file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return apiService.post(`/brands/${id}/logo`, formData, { isFormData: true });
+  },
   deleteBrand: (id) => apiService.del(`/brands/${id}`),
 
   products: (filters = {}) => apiService.get('/products' + toQueryString(filters)),

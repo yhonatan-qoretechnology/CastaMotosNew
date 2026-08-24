@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260823c">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260823f">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260823c"></script>
+<script src="frontend/js/theme-init.js?v=20260823f"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -320,6 +320,24 @@
     </form>
 
     <p style="color:var(--gris-texto);font-size:0.85rem;margin-top:24px;">
+      Horario de atención — arma los horarios disponibles para reservar (lavado y servicios agendables) y se muestra en la portada.
+    </p>
+    <form id="settings-hours-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="settings-hours-start">Hora de apertura</label>
+          <input class="form-control" type="time" id="settings-hours-start" required>
+        </div>
+        <div class="form-group">
+          <label for="settings-hours-end">Hora de cierre (última reserva)</label>
+          <input class="form-control" type="time" id="settings-hours-end" required>
+        </div>
+      </div>
+      <div class="form-error" id="settings-hours-error"></div>
+      <button class="btn btn-primary" type="submit">Guardar cambios</button>
+    </form>
+
+    <p style="color:var(--gris-texto);font-size:0.85rem;margin-top:24px;">
       Este texto es el que ven los clientes en /terminos y al aceptar en el registro. Podés editarlo cuando quieras — se guarda en la base de datos, no hace falta subir código.
     </p>
     <form id="settings-terms-form">
@@ -595,18 +613,15 @@
         </div>
       </div>
 
-      <div class="form-group" id="category-image-section" hidden>
+      <div class="form-group" id="category-image-section">
         <label>Ícono/imagen</label>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <img id="category-image-preview" alt="Ícono de la categoría" hidden style="width:56px;height:56px;object-fit:contain;background:var(--gris-oscuro);border:1px solid var(--gris-borde);border-radius:var(--radio-sm);padding:6px;">
           <span id="category-image-placeholder" style="font-size:2rem;">🏍️</span>
           <input type="file" id="category-image-input" accept="image/jpeg,image/png,image/webp">
         </div>
-        <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">Opcional — sin ícono propio, el sitio usa uno genérico. JPG, PNG o WEBP.</p>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">Opcional — sin ícono propio, el sitio usa uno genérico. JPG, PNG o WEBP. Se guarda junto con el resto del formulario.</p>
       </div>
-      <p class="form-error" style="color:var(--gris-texto);font-size:0.75rem;" id="category-image-hint" hidden>
-        Guardá la categoría primero para poder subirle un ícono.
-      </p>
 
       <div class="form-error" id="category-form-error"></div>
       <button class="btn btn-primary btn-block" type="submit" id="category-submit-btn">Crear categoría</button>
@@ -627,8 +642,13 @@
         <input class="form-control" id="brand-name" required>
       </div>
       <div class="form-group">
-        <label for="brand-logo">URL del logo (opcional)</label>
-        <input class="form-control" id="brand-logo" placeholder="https://...">
+        <label>Logo (opcional)</label>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <img id="brand-logo-preview" alt="Logo de la marca" hidden style="width:56px;height:56px;object-fit:contain;background:var(--gris-oscuro);border:1px solid var(--gris-borde);border-radius:var(--radio-sm);padding:6px;">
+          <span id="brand-logo-placeholder" style="font-size:2rem;">🏷️</span>
+          <input type="file" id="brand-logo-input" accept="image/jpeg,image/png,image/webp">
+        </div>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">JPG, PNG o WEBP — se guarda junto con el resto del formulario.</p>
       </div>
       <div class="form-group">
         <label for="brand-status">Estado</label>
@@ -771,18 +791,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260823c"></script>
-<script src="frontend/js/utils/helpers.js?v=20260823c"></script>
-<script src="frontend/js/services/apiService.js?v=20260823c"></script>
-<script src="frontend/js/services/authService.js?v=20260823c"></script>
-<script src="frontend/js/services/catalogService.js?v=20260823c"></script>
-<script src="frontend/js/services/cartService.js?v=20260823c"></script>
-<script src="frontend/js/services/adminService.js?v=20260823c"></script>
-<script src="frontend/js/services/themeService.js?v=20260823c"></script>
-<script src="frontend/js/services/settingsService.js?v=20260823c"></script>
-<script src="frontend/js/services/notificationService.js?v=20260823c"></script>
-<script src="frontend/js/components/layout.js?v=20260823c"></script>
-<script src="frontend/js/components/charts.js?v=20260823c"></script>
-<script src="frontend/js/pages/admin.js?v=20260823c"></script>
+<script src="frontend/js/i18n.js?v=20260823f"></script>
+<script src="frontend/js/utils/helpers.js?v=20260823f"></script>
+<script src="frontend/js/services/apiService.js?v=20260823f"></script>
+<script src="frontend/js/services/authService.js?v=20260823f"></script>
+<script src="frontend/js/services/catalogService.js?v=20260823f"></script>
+<script src="frontend/js/services/cartService.js?v=20260823f"></script>
+<script src="frontend/js/services/adminService.js?v=20260823f"></script>
+<script src="frontend/js/services/themeService.js?v=20260823f"></script>
+<script src="frontend/js/services/settingsService.js?v=20260823f"></script>
+<script src="frontend/js/services/notificationService.js?v=20260823f"></script>
+<script src="frontend/js/components/layout.js?v=20260823f"></script>
+<script src="frontend/js/components/charts.js?v=20260823f"></script>
+<script src="frontend/js/pages/admin.js?v=20260823f"></script>
 </body>
 </html>

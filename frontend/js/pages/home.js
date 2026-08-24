@@ -146,6 +146,30 @@ async function loadFeaturedServices() {
   }
 }
 
+/** "08:30" → "8:30 a. m." — solo para mostrar (nunca para un <input>, ver
+ * servicio.js: ahí la ambigüedad AM/PM se resuelve con botones en 24h, no
+ * reformateando esto). Horario configurable desde /admin → Configuración. */
+function formatHour12(time) {
+  const [h, m] = time.split(':').map(Number);
+  const period = h < 12 ? 'a. m.' : 'p. m.';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+async function loadBusinessHours() {
+  const mount = document.getElementById('home-business-hours');
+  if (!mount) return;
+
+  try {
+    const settings = await settingsService.get();
+    const start = settings.business_hours_start || '08:30';
+    const end = settings.business_hours_end || '16:30';
+    mount.textContent = `${formatHour12(start)} a ${formatHour12(end)}`;
+  } catch (error) {
+    mount.textContent = '';
+  }
+}
+
 function wireHomeSearch() {
   const form = document.getElementById('hero-search-form');
   if (!form) return;
@@ -164,4 +188,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFeaturedProducts();
   loadFeaturedServices();
   loadWashServices();
+  loadBusinessHours();
 });
