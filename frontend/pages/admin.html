@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260823f">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260823g">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260823f"></script>
+<script src="frontend/js/theme-init.js?v=20260823g"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -404,12 +404,30 @@
       </div>
 
       <div class="form-group">
+        <label for="service-shipping-cost">Costo de envío (opcional)</label>
+        <input class="form-control" type="number" min="0" step="1" id="service-shipping-cost" placeholder="Vacío = usa el envío general del sitio">
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:4px 0 0;">
+          Dejalo vacío para que este servicio use el envío general (tarifa plana + umbral de gratis). Cargá un valor (podés poner 0 para gratis) para que este servicio en particular siempre cobre ese costo fijo de envío, sin importar el resto del carrito.
+        </p>
+      </div>
+
+      <div class="form-group">
         <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
           <input type="checkbox" id="service-requires-scheduling" checked style="width:auto;">
           Requiere agendar fecha y hora
         </label>
         <p style="font-size:0.75rem;color:var(--gris-texto);margin:4px 0 0;">
           Desmarcá esto si el servicio no se reserva para un momento puntual (ej. algo con precio fijo, sin cita) — la ficha no va a pedir fecha/hora y se agrega al carrito directo.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
+          <input type="checkbox" id="service-is-informational" style="width:auto;">
+          Es solo informativo (sin reserva ni compra)
+        </label>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:4px 0 0;">
+          Para servicios como "Parqueadero" que no se reservan ni se pagan online — la ficha muestra "Cómo llegar" como acción principal en vez del box de compra/reserva. Necesita ubicación cargada abajo.
         </p>
       </div>
 
@@ -531,6 +549,14 @@
           <label for="product-previous-price">Precio anterior (para mostrar descuento)</label>
           <input class="form-control" type="number" min="0" step="1" id="product-previous-price">
         </div>
+      </div>
+
+      <div class="form-group">
+        <label for="product-shipping-cost">Costo de envío (opcional)</label>
+        <input class="form-control" type="number" min="0" step="1" id="product-shipping-cost" placeholder="Vacío = usa el envío general del sitio">
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:4px 0 0;">
+          Dejalo vacío para que este producto use el envío general (tarifa plana + umbral de gratis). Cargá un valor (podés poner 0 para gratis) para que este producto en particular siempre cobre ese costo fijo de envío, sin importar el resto del carrito.
+        </p>
       </div>
 
       <div class="form-row">
@@ -791,18 +817,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260823f"></script>
-<script src="frontend/js/utils/helpers.js?v=20260823f"></script>
-<script src="frontend/js/services/apiService.js?v=20260823f"></script>
-<script src="frontend/js/services/authService.js?v=20260823f"></script>
-<script src="frontend/js/services/catalogService.js?v=20260823f"></script>
-<script src="frontend/js/services/cartService.js?v=20260823f"></script>
-<script src="frontend/js/services/adminService.js?v=20260823f"></script>
-<script src="frontend/js/services/themeService.js?v=20260823f"></script>
-<script src="frontend/js/services/settingsService.js?v=20260823f"></script>
-<script src="frontend/js/services/notificationService.js?v=20260823f"></script>
-<script src="frontend/js/components/layout.js?v=20260823f"></script>
-<script src="frontend/js/components/charts.js?v=20260823f"></script>
-<script src="frontend/js/pages/admin.js?v=20260823f"></script>
+<script src="frontend/js/i18n.js?v=20260823g"></script>
+<script src="frontend/js/utils/helpers.js?v=20260823g"></script>
+<script src="frontend/js/services/apiService.js?v=20260823g"></script>
+<script src="frontend/js/services/authService.js?v=20260823g"></script>
+<script src="frontend/js/services/catalogService.js?v=20260823g"></script>
+<script src="frontend/js/services/cartService.js?v=20260823g"></script>
+<script src="frontend/js/services/adminService.js?v=20260823g"></script>
+<script src="frontend/js/services/themeService.js?v=20260823g"></script>
+<script src="frontend/js/services/settingsService.js?v=20260823g"></script>
+<script src="frontend/js/services/notificationService.js?v=20260823g"></script>
+<script src="frontend/js/components/layout.js?v=20260823g"></script>
+<script src="frontend/js/components/charts.js?v=20260823g"></script>
+<script src="frontend/js/pages/admin.js?v=20260823g"></script>
 </body>
 </html>

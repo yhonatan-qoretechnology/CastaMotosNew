@@ -44,7 +44,22 @@ function serviceRequiresScheduling(service) {
   return Number(service.requires_scheduling ?? 1) !== 0;
 }
 
+/**
+ * "Es solo informativo" (/admin → Servicios) — para algo como "Parqueadero",
+ * que no se reserva ni se paga online: la ficha no ofrece comprar/agendar
+ * nada, solo un botón grande de "Cómo llegar" (mismo link que ya arma
+ * directionsLink() para la línea de ubicación de más arriba).
+ */
 function purchaseBoxMarkup(service) {
+  if (service.is_informational) {
+    if (!service.location) return ''; // sin ubicación cargada no hay a dónde llevar el botón
+    return `
+      <div class="purchase-box mt-16">
+        <a class="btn btn-primary btn-block" href="${directionsLink(service)}" target="_blank" rel="noopener">📍 Cómo llegar</a>
+      </div>
+    `;
+  }
+
   if (!serviceRequiresScheduling(service)) {
     return `
       <div class="purchase-box mt-16">
@@ -149,7 +164,7 @@ function renderServiceDetail(service) {
         ${service.location ? `
           <p style="color:var(--gris-texto);">
             📍 ${helpers.escapeHtml(service.location)}
-            — <a href="${directionsLink(service)}" target="_blank" rel="noopener" style="color:var(--amarillo);">Cómo llegar</a>
+            ${service.is_informational ? '' : `— <a href="${directionsLink(service)}" target="_blank" rel="noopener" style="color:var(--amarillo);">Cómo llegar</a>`}
           </p>
         ` : ''}
 
@@ -175,40 +190,45 @@ function renderServiceDetail(service) {
 
   initGallery360(serviceImageUrls(service));
 
-  if (serviceRequiresScheduling(service)) {
-    // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
-    const dateInput = document.getElementById('reservation-date');
-    dateInput.min = new Date().toISOString().slice(0, 10);
-    dateInput.addEventListener('change', () => {
-      if (dateInput.value) loadServiceTimeSlots(service, dateInput.value);
-    });
+  // Informativo (ej. "Parqueadero"): el box de compra/reserva ni existe acá
+  // (purchaseBoxMarkup() devolvió solo el botón "Cómo llegar", un <a> común,
+  // sin nada que cablear) — no hay #reservation-date ni #add-service-to-cart-btn.
+  if (!service.is_informational) {
+    if (serviceRequiresScheduling(service)) {
+      // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
+      const dateInput = document.getElementById('reservation-date');
+      dateInput.min = new Date().toISOString().slice(0, 10);
+      dateInput.addEventListener('change', () => {
+        if (dateInput.value) loadServiceTimeSlots(service, dateInput.value);
+      });
 
-    document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
-      const date = dateInput.value;
+      document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
+        const date = dateInput.value;
 
-      if (!date || !selectedReservationTime) {
-        helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
-        return;
-      }
+        if (!date || !selectedReservationTime) {
+          helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
+          return;
+        }
 
-      try {
-        await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${selectedReservationTime}:00` });
-        helpers.toast('Servicio agendado y agregado al carrito.', 'success');
-        refreshCartBadge();
-      } catch (error) {
-        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
-      }
-    });
-  } else {
-    document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
-      try {
-        await cartService.addItem({ service_id: service.id, quantity: 1 });
-        helpers.toast('Servicio agregado al carrito.', 'success');
-        refreshCartBadge();
-      } catch (error) {
-        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
-      }
-    });
+        try {
+          await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${selectedReservationTime}:00` });
+          helpers.toast('Servicio agendado y agregado al carrito.', 'success');
+          refreshCartBadge();
+        } catch (error) {
+          helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+        }
+      });
+    } else {
+      document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
+        try {
+          await cartService.addItem({ service_id: service.id, quantity: 1 });
+          helpers.toast('Servicio agregado al carrito.', 'success');
+          refreshCartBadge();
+        } catch (error) {
+          helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+        }
+      });
+    }
   }
 
   document.getElementById('service-favorite-btn').addEventListener('click', async () => {

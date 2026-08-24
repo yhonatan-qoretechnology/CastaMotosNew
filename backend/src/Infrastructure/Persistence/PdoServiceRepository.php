@@ -210,12 +210,12 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
         $stmt = $this->connection->prepare(
             'INSERT INTO services (
                 store_id, category_id, professional_user_id, name, name_en, slug, description, description_en, price,
-                duration_minutes, requires_scheduling, location, latitude, longitude, schedule, availability,
-                cancellation_policy, warranty, facebook_url, status
+                shipping_cost, duration_minutes, requires_scheduling, is_informational, location, latitude, longitude,
+                schedule, availability, cancellation_policy, warranty, facebook_url, status
             ) VALUES (
                 :store_id, :category_id, :professional_user_id, :name, :name_en, :slug, :description, :description_en, :price,
-                :duration_minutes, :requires_scheduling, :location, :latitude, :longitude, :schedule, :availability,
-                :cancellation_policy, :warranty, :facebook_url, :status
+                :shipping_cost, :duration_minutes, :requires_scheduling, :is_informational, :location, :latitude, :longitude,
+                :schedule, :availability, :cancellation_policy, :warranty, :facebook_url, :status
             )'
         );
         $stmt->execute($this->bindings($data));
@@ -229,7 +229,8 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
             'UPDATE services SET
                 store_id = :store_id, category_id = :category_id, professional_user_id = :professional_user_id,
                 name = :name, name_en = :name_en, slug = :slug, description = :description, description_en = :description_en, price = :price,
-                duration_minutes = :duration_minutes, requires_scheduling = :requires_scheduling, location = :location,
+                shipping_cost = :shipping_cost, duration_minutes = :duration_minutes,
+                requires_scheduling = :requires_scheduling, is_informational = :is_informational, location = :location,
                 latitude = :latitude, longitude = :longitude, schedule = :schedule, availability = :availability,
                 cancellation_policy = :cancellation_policy, warranty = :warranty, facebook_url = :facebook_url, status = :status
              WHERE id = :id'
@@ -249,10 +250,12 @@ final class PdoServiceRepository implements ServiceRepositoryInterface
             'description' => $data['description'] ?? null,
             'description_en' => $data['description_en'] ?? null,
             'price' => $data['price'],
+            'shipping_cost' => $data['shipping_cost'] ?? null,
             'duration_minutes' => $data['duration_minutes'] ?? null,
             // Default 1 (sí exige fecha/hora) si no viene — mismo default que la
             // columna en BD (migración 055), preserva el comportamiento de siempre.
             'requires_scheduling' => array_key_exists('requires_scheduling', $data) ? (int) $data['requires_scheduling'] : 1,
+            'is_informational' => array_key_exists('is_informational', $data) ? (int) $data['is_informational'] : 0,
             'location' => $data['location'] ?? null,
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,

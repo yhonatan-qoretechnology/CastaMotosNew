@@ -317,11 +317,11 @@ final class PdoProductRepository implements ProductRepositoryInterface
         $stmt = $this->connection->prepare(
             'INSERT INTO products (
                 store_id, category_id, brand_id, supplier_id, name, name_en, slug, description, short_description, short_description_en,
-                sku, internal_code, price, previous_price, discount_percentage, tax_rate,
+                sku, internal_code, price, shipping_cost, previous_price, discount_percentage, tax_rate,
                 stock, min_stock, weight, dimensions, warranty, additional_info, status
             ) VALUES (
                 :store_id, :category_id, :brand_id, :supplier_id, :name, :name_en, :slug, :description, :short_description, :short_description_en,
-                :sku, :internal_code, :price, :previous_price, :discount_percentage, :tax_rate,
+                :sku, :internal_code, :price, :shipping_cost, :previous_price, :discount_percentage, :tax_rate,
                 :stock, :min_stock, :weight, :dimensions, :warranty, :additional_info, :status
             )'
         );
@@ -337,7 +337,8 @@ final class PdoProductRepository implements ProductRepositoryInterface
                 store_id = :store_id, category_id = :category_id, brand_id = :brand_id, supplier_id = :supplier_id,
                 name = :name, name_en = :name_en, slug = :slug, description = :description,
                 short_description = :short_description, short_description_en = :short_description_en,
-                sku = :sku, internal_code = :internal_code, price = :price, previous_price = :previous_price,
+                sku = :sku, internal_code = :internal_code, price = :price, shipping_cost = :shipping_cost,
+                previous_price = :previous_price,
                 discount_percentage = :discount_percentage, tax_rate = :tax_rate, stock = :stock,
                 min_stock = :min_stock, weight = :weight, dimensions = :dimensions, warranty = :warranty,
                 additional_info = :additional_info, status = :status
@@ -362,6 +363,7 @@ final class PdoProductRepository implements ProductRepositoryInterface
             'sku' => $data['sku'],
             'internal_code' => $data['internal_code'] ?? null,
             'price' => $data['price'],
+            'shipping_cost' => $data['shipping_cost'] ?? null,
             'previous_price' => $data['previous_price'] ?? null,
             'discount_percentage' => $data['discount_percentage'] ?? 0,
             'tax_rate' => $data['tax_rate'] ?? 0,

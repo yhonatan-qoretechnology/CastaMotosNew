@@ -539,7 +539,9 @@ async function openServiceForm(slug) {
     document.getElementById('service-category').value = service.category_id || '';
     document.getElementById('service-price').value = service.price;
     document.getElementById('service-duration').value = service.duration_minutes || '';
+    document.getElementById('service-shipping-cost').value = service.shipping_cost ?? '';
     document.getElementById('service-requires-scheduling').checked = Number(service.requires_scheduling ?? 1) !== 0;
+    document.getElementById('service-is-informational').checked = Number(service.is_informational ?? 0) !== 0;
     document.getElementById('service-location').value = service.location || '';
     document.getElementById('service-latitude').value = service.latitude ?? DEFAULT_SERVICE_LATITUDE;
     document.getElementById('service-longitude').value = service.longitude ?? DEFAULT_SERVICE_LONGITUDE;
@@ -573,7 +575,9 @@ function serviceFormPayload() {
     category_id: document.getElementById('service-category').value || undefined,
     price: document.getElementById('service-price').value,
     duration_minutes: document.getElementById('service-duration').value || undefined,
+    shipping_cost: document.getElementById('service-shipping-cost').value !== '' ? document.getElementById('service-shipping-cost').value : undefined,
     requires_scheduling: document.getElementById('service-requires-scheduling').checked,
+    is_informational: document.getElementById('service-is-informational').checked,
     location: document.getElementById('service-location').value.trim() || undefined,
     latitude: document.getElementById('service-latitude').value || undefined,
     longitude: document.getElementById('service-longitude').value || undefined,
@@ -824,6 +828,7 @@ async function openProductForm(slug) {
     document.getElementById('product-supplier').value = product.supplier_id || '';
     document.getElementById('product-price').value = product.price;
     document.getElementById('product-previous-price').value = product.previous_price || '';
+    document.getElementById('product-shipping-cost').value = product.shipping_cost ?? '';
     document.getElementById('product-stock').value = product.stock;
     document.getElementById('product-min-stock').value = product.min_stock || 0;
     document.getElementById('product-short-description').value = product.short_description || '';
@@ -865,6 +870,7 @@ function productFormPayload() {
     supplier_id: document.getElementById('product-supplier').value || undefined,
     price: document.getElementById('product-price').value,
     previous_price: document.getElementById('product-previous-price').value || undefined,
+    shipping_cost: document.getElementById('product-shipping-cost').value !== '' ? document.getElementById('product-shipping-cost').value : undefined,
     // Al editar, el input está deshabilitado (readonly) — su .value sigue siendo
     // el stock actual precargado, así que el campo "required" del backend se
     // cumple sin permitir que este formulario lo cambie de verdad.

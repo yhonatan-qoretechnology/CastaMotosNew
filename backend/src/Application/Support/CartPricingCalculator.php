@@ -54,7 +54,7 @@ final class CartPricingCalculator
         $discountTotal += $couponDiscount;
 
         $amountAfterDiscount = $amountAfterItemDiscounts - $couponDiscount;
-        $shippingTotal = self::shipping($amountAfterDiscount, $deliveryMethod, $shippingFlatRate, $shippingFreeThreshold);
+        $shippingTotal = self::shipping($items, $deliveryMethod, $shippingFlatRate, $shippingFreeThreshold);
         $total = $amountAfterDiscount + $taxTotal + $shippingTotal;
 
         return [
@@ -67,8 +67,18 @@ final class CartPricingCalculator
         ];
     }
 
+    /**
+     * Envío por ítem (sección nueva, /admin → Productos/Servicios): un item
+     * con "shipping_cost" cargado (aunque sea 0.00 = gratis a propósito)
+     * cobra ESE valor fijo en vez de entrar en el cálculo general — cada uno
+     * puede costar distinto, o no cobrarse. Los items SIN ese campo cargado
+     * siguen la tarifa plana de siempre (con su umbral de envío gratis),
+     * calculada solo sobre lo que aportan esos items sin override.
+     *
+     * @param array $items Cada uno con: unit_price, quantity, y opcionalmente shipping_cost.
+     */
     private static function shipping(
-        float $amountAfterDiscount,
+        array $items,
         string $deliveryMethod,
         float $flatRate,
         float $freeThreshold
@@ -77,6 +87,23 @@ final class CartPricingCalculator
             return 0.0;
         }
 
-        return $amountAfterDiscount >= $freeThreshold ? 0.0 : $flatRate;
+        $overrideTotal = 0.0;
+        $generalSubtotal = 0.0;
+        $hasGeneralItem = false;
+
+        foreach ($items as $item) {
+            $lineSubtotal = $item['unit_price'] * $item['quantity'];
+
+            if (array_key_exists('shipping_cost', $item) && $item['shipping_cost'] !== null) {
+                $overrideTotal += (float) $item['shipping_cost'] * $item['quantity'];
+            } else {
+                $generalSubtotal += $lineSubtotal;
+                $hasGeneralItem = true;
+            }
+        }
+
+        $generalShipping = ($hasGeneralItem && $generalSubtotal < $freeThreshold) ? $flatRate : 0.0;
+
+        return $overrideTotal + $generalShipping;
     }
 }

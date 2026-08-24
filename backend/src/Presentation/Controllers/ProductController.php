@@ -52,6 +52,7 @@ final class ProductController
         'sku' => 'max:100',
         'internal_code' => 'max:100',
         'price' => 'required|numeric|gte:0',
+        'shipping_cost' => 'numeric|gte:0',
         'previous_price' => 'numeric|gte:0',
         'discount_percentage' => 'numeric|gte:0',
         'tax_rate' => 'numeric|gte:0',
