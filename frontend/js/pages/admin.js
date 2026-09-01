@@ -532,8 +532,8 @@ function resetServiceForm() {
 // (eso cubre "Nuevo servicio"). Acá cubre "Editar servicio": si el servicio
 // todavía no tiene coordenada propia cargada, se le asigna esta por defecto
 // en vez de dejarla vacía, para no depender de "Usar mi ubicación actual".
-const DEFAULT_SERVICE_LATITUDE = '5.0691798';
-const DEFAULT_SERVICE_LONGITUDE = '-75.5206221';
+const DEFAULT_SERVICE_LATITUDE = '5.0689123';
+const DEFAULT_SERVICE_LONGITUDE = '-75.5206348';
 
 /** @param {string|null} slug - null para crear, slug del servicio para editar. */
 async function openServiceForm(slug) {
