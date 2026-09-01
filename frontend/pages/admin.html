@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260823j">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260901d">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260823j"></script>
+<script src="frontend/js/theme-init.js?v=20260901d"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -427,6 +427,20 @@
         </p>
       </div>
 
+      <div class="form-row" id="service-schedule-hours-row">
+        <div class="form-group">
+          <label for="service-schedule-hours-start">Horario de atención propio — desde (opcional)</label>
+          <input class="form-control" type="time" id="service-schedule-hours-start">
+        </div>
+        <div class="form-group">
+          <label for="service-schedule-hours-end">Hasta (opcional)</label>
+          <input class="form-control" type="time" id="service-schedule-hours-end">
+        </div>
+      </div>
+      <p id="service-schedule-hours-hint" style="font-size:0.75rem;color:var(--gris-texto);margin:-10px 0 14px;">
+        Dejalo vacío para que este servicio use el horario general del sitio (Configuración → Horario de atención). Cargá los dos para que ESTE servicio en particular reserve solo dentro de ese rango (ej. un profesional que atiende en un horario distinto al del local).
+      </p>
+
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
           <input type="checkbox" id="service-is-informational" style="width:auto;">
@@ -519,8 +533,8 @@
           <input class="form-control" id="product-name" required>
         </div>
         <div class="form-group">
-          <label for="product-sku">SKU (opcional — se genera automático y único si lo dejas vacío)</label>
-          <input class="form-control" id="product-sku" placeholder="Ej. CAS-4F2A1B">
+          <label for="product-sku">SKU (se genera automático y único)</label>
+          <input class="form-control" id="product-sku" placeholder="Se genera al crear el producto" disabled>
         </div>
       </div>
 
@@ -565,6 +579,30 @@
         </p>
       </div>
 
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
+          <input type="checkbox" id="product-requires-scheduling" style="width:auto;">
+          Requiere agendar fecha y hora
+        </label>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:4px 0 0;">
+          Marcá esto si el producto necesita un turno además de la compra (ej. algo que se instala en el taller) — la ficha va a pedir fecha/hora, con el mismo horario laboral y control de reservas que ya usan los servicios agendados.
+        </p>
+      </div>
+
+      <div class="form-row" id="product-schedule-hours-row">
+        <div class="form-group">
+          <label for="product-schedule-hours-start">Horario de atención propio — desde (opcional)</label>
+          <input class="form-control" type="time" id="product-schedule-hours-start">
+        </div>
+        <div class="form-group">
+          <label for="product-schedule-hours-end">Hasta (opcional)</label>
+          <input class="form-control" type="time" id="product-schedule-hours-end">
+        </div>
+      </div>
+      <p id="product-schedule-hours-hint" style="font-size:0.75rem;color:var(--gris-texto);margin:-10px 0 14px;">
+        Dejalo vacío para que este producto use el horario general del sitio (Configuración → Horario de atención). Cargá los dos para que ESTE producto en particular se agende solo dentro de ese rango.
+      </p>
+
       <div class="form-row">
         <div class="form-group">
           <label for="product-stock">Stock inicial</label>
@@ -590,6 +628,11 @@
       </div>
 
       <div class="form-group">
+        <label for="product-description">Descripción</label>
+        <textarea class="form-control" id="product-description" rows="6" placeholder="Se muestra en la ficha del producto — los saltos de línea que escribas acá se conservan."></textarea>
+      </div>
+
+      <div class="form-group">
         <label for="product-warranty">Garantía (opcional)</label>
         <input class="form-control" id="product-warranty" placeholder="Ej. 12 meses por defectos de fábrica" maxlength="150">
       </div>
@@ -607,6 +650,28 @@
         <label>Fotos <span id="product-images-count" style="color:var(--gris-texto);font-weight:400;">(0/6)</span> — 2 o más habilitan el giro 360° en el detalle</label>
         <div class="admin-image-list" id="product-images-list"></div>
         <input type="file" id="product-image-input" accept="image/jpeg,image/png,image/webp" multiple>
+      </div>
+
+      <div class="form-group" id="product-variants-section" hidden>
+        <label>Variantes (talla, color, etc. — cada una con su propio precio/stock si aplica)</label>
+        <div id="product-variants-list"></div>
+        <button class="btn btn-secondary" type="button" id="product-variant-add-btn">+ Agregar variante</button>
+        <button class="btn btn-primary" type="button" id="product-variants-save-btn" style="margin-left:8px;">Guardar variantes</button>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">
+          Ej. "Talla M", "Talla L", "Rojo", "Negro" — el cliente elige UNA al comprar. El precio es un ajuste sobre el precio base (podés dejarlo en 0 si no cambia).
+        </p>
+        <div class="form-error" id="product-variants-error"></div>
+      </div>
+
+      <div class="form-group" id="product-attributes-section" hidden>
+        <label>Atributos / especificaciones (opcional)</label>
+        <div id="product-attributes-list"></div>
+        <button class="btn btn-secondary" type="button" id="product-attribute-add-btn">+ Agregar atributo</button>
+        <button class="btn btn-primary" type="button" id="product-attributes-save-btn" style="margin-left:8px;">Guardar atributos</button>
+        <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">
+          Ej. "Material" → "Cuero", "Peso" → "1.2 kg" — se muestran como ficha técnica, no afectan el precio.
+        </p>
+        <div class="form-error" id="product-attributes-error"></div>
       </div>
 
       <div class="form-error" id="product-form-error"></div>
@@ -823,18 +888,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260823j"></script>
-<script src="frontend/js/utils/helpers.js?v=20260823j"></script>
-<script src="frontend/js/services/apiService.js?v=20260823j"></script>
-<script src="frontend/js/services/authService.js?v=20260823j"></script>
-<script src="frontend/js/services/catalogService.js?v=20260823j"></script>
-<script src="frontend/js/services/cartService.js?v=20260823j"></script>
-<script src="frontend/js/services/adminService.js?v=20260823j"></script>
-<script src="frontend/js/services/themeService.js?v=20260823j"></script>
-<script src="frontend/js/services/settingsService.js?v=20260823j"></script>
-<script src="frontend/js/services/notificationService.js?v=20260823j"></script>
-<script src="frontend/js/components/layout.js?v=20260823j"></script>
-<script src="frontend/js/components/charts.js?v=20260823j"></script>
-<script src="frontend/js/pages/admin.js?v=20260823j"></script>
+<script src="frontend/js/i18n.js?v=20260901d"></script>
+<script src="frontend/js/utils/helpers.js?v=20260901d"></script>
+<script src="frontend/js/services/apiService.js?v=20260901d"></script>
+<script src="frontend/js/services/authService.js?v=20260901d"></script>
+<script src="frontend/js/services/catalogService.js?v=20260901d"></script>
+<script src="frontend/js/services/cartService.js?v=20260901d"></script>
+<script src="frontend/js/services/adminService.js?v=20260901d"></script>
+<script src="frontend/js/services/themeService.js?v=20260901d"></script>
+<script src="frontend/js/services/settingsService.js?v=20260901d"></script>
+<script src="frontend/js/services/notificationService.js?v=20260901d"></script>
+<script src="frontend/js/components/layout.js?v=20260901d"></script>
+<script src="frontend/js/components/charts.js?v=20260901d"></script>
+<script src="frontend/js/pages/admin.js?v=20260901d"></script>
 </body>
 </html>

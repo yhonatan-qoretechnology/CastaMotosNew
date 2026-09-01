@@ -85,6 +85,19 @@ const helpers = {
     return slots;
   },
 
+  /**
+   * Horario de atención a usar para agendar un servicio/producto puntual —
+   * mismo patrón que shipping_cost (ver CartPricingCalculator): si el ítem
+   * cargó su propio "schedule_hours_start/end" (/admin), ese rango manda;
+   * si no, cae al horario general del sitio (settingsService.get()).
+   */
+  resolveScheduleHours(item, settings) {
+    return {
+      start: item.schedule_hours_start || settings.business_hours_start || '08:30',
+      end: item.schedule_hours_end || settings.business_hours_end || '16:30',
+    };
+  },
+
   categoryHref(category) {
     if (category.slug === 'servicios') {
       return `servicios?category=${encodeURIComponent(category.slug)}`;

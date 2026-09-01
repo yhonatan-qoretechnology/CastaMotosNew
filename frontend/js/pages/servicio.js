@@ -68,6 +68,22 @@ function purchaseBoxMarkup(service) {
     `;
   }
 
+  // Antes se pedía la sesión recién al hacer clic en "Agendar servicio",
+  // después de elegir fecha y hora — el usuario reportó que quiere que
+  // sea "lo primero que se pida". Ahora, si no hay sesión iniciada, ni
+  // siquiera se muestra el formulario de fecha/hora: se pide loguearse
+  // primero (mismo modal de siempre) y recién con sesión aparece el form
+  // real (redirectAfterLogin() en layout.js recarga la página al loguearse).
+  if (!authService.isAuthenticated()) {
+    return `
+      <div class="purchase-box mt-16">
+        <p style="font-weight:700;margin:0 0 10px;">📅 Reservar este servicio</p>
+        <p style="color:var(--gris-texto);margin:0 0 12px;">Necesitás iniciar sesión antes de poder elegir fecha y hora.</p>
+        <button class="btn btn-primary btn-block" id="service-reservation-login-btn">Iniciar sesión para agendar</button>
+      </div>
+    `;
+  }
+
   return `
     <div class="purchase-box mt-16">
       <p style="font-weight:700;margin:0 0 10px;">📅 Reservar este servicio</p>
@@ -107,7 +123,8 @@ async function loadServiceTimeSlots(service, date) {
       catalogService.serviceBookedTimes(service.id, date),
       settingsService.get(),
     ]);
-    const businessHours = helpers.generateHourlySlots(settings.business_hours_start || '08:30', settings.business_hours_end || '16:30');
+    const hours = helpers.resolveScheduleHours(service, settings);
+    const businessHours = helpers.generateHourlySlots(hours.start, hours.end);
     const isToday = date === new Date().toISOString().slice(0, 10);
     const nowHour = new Date().getHours();
 
@@ -182,7 +199,7 @@ function renderServiceDetail(service) {
           <button class="share-btn" id="service-copy-link-btn">Copiar enlace</button>
         </div>
 
-        ${service.description ? `<div class="mt-16" style="color:var(--gris-texto);">${helpers.escapeHtml(service.description)}</div>` : ''}
+        ${service.description ? `<div class="mt-16" style="color:var(--gris-texto);white-space:pre-line;">${helpers.escapeHtml(service.description)}</div>` : ''}
         ${service.cancellation_policy ? `<p class="mt-16" style="font-size:0.8rem;color:var(--gris-texto);"><strong>Política de cancelación:</strong> ${helpers.escapeHtml(service.cancellation_policy)}</p>` : ''}
       </div>
     </div>
@@ -195,31 +212,43 @@ function renderServiceDetail(service) {
   // sin nada que cablear) — no hay #reservation-date ni #add-service-to-cart-btn.
   if (!service.is_informational) {
     if (serviceRequiresScheduling(service)) {
-      // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
-      const dateInput = document.getElementById('reservation-date');
-      dateInput.min = new Date().toISOString().slice(0, 10);
-      dateInput.addEventListener('change', () => {
-        if (dateInput.value) loadServiceTimeSlots(service, dateInput.value);
-      });
+      if (!authService.isAuthenticated()) {
+        // purchaseBoxMarkup() ya reemplazó el form entero por este botón —
+        // ni #reservation-date ni #add-service-to-cart-btn existen acá.
+        document.getElementById('service-reservation-login-btn').addEventListener('click', () => openAuthModal('login'));
+      } else {
+        // La fecha mínima seleccionable es hoy — no tiene sentido agendar en el pasado.
+        const dateInput = document.getElementById('reservation-date');
+        dateInput.min = new Date().toISOString().slice(0, 10);
+        dateInput.addEventListener('change', () => {
+          if (dateInput.value) loadServiceTimeSlots(service, dateInput.value);
+        });
 
+        document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
+          const date = dateInput.value;
+
+          if (!date || !selectedReservationTime) {
+            helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
+            return;
+          }
+
+          try {
+            await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${selectedReservationTime}:00` });
+            helpers.toast('Servicio agendado y agregado al carrito.', 'success');
+            refreshCartBadge();
+          } catch (error) {
+            helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+          }
+        });
+      }
+    } else {
       document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
-        const date = dateInput.value;
-
-        if (!date || !selectedReservationTime) {
-          helpers.toast('Elige una fecha y una hora para agendar el servicio.', 'error');
+        if (!authService.isAuthenticated()) {
+          helpers.toast('Inicia sesión para agregar este servicio al carrito.', 'error');
+          openAuthModal('login');
           return;
         }
 
-        try {
-          await cartService.addItem({ service_id: service.id, quantity: 1, scheduled_at: `${date} ${selectedReservationTime}:00` });
-          helpers.toast('Servicio agendado y agregado al carrito.', 'success');
-          refreshCartBadge();
-        } catch (error) {
-          helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
-        }
-      });
-    } else {
-      document.getElementById('add-service-to-cart-btn').addEventListener('click', async () => {
         try {
           // Igual que en producto.js: si ya está en el carrito, se avisa en
           // vez de sumarlo en silencio (el backend lo suma a la misma fila,

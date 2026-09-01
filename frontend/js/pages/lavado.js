@@ -123,6 +123,16 @@ async function renderStep() {
 
       document.querySelectorAll('.wash-option').forEach((btn) => {
         btn.addEventListener('click', () => {
+          // Antes se pedía la sesión recién al confirmar la reserva (paso 4,
+          // el último) — el usuario reportó que la quiere "lo primero que se
+          // pida". Se revisa acá, apenas elige QUÉ quiere lavar, antes de
+          // mostrarle el selector de fecha/hora (paso 2) — no después de que
+          // complete todo el wizard para recién ahí enterarse.
+          if (!authService.isAuthenticated()) {
+            helpers.toast('Inicia sesión para agendar tu lavado.', 'error');
+            openAuthModal('login');
+            return;
+          }
           washState.service = options.find((s) => String(s.id) === btn.dataset.id);
           setStep(2);
         });
@@ -247,10 +257,13 @@ async function renderStep() {
   }
 }
 
-/** Horario de atención configurable (/admin → Configuración) — antes era fijo acá (08:00 a 17:00). */
+/** Horario de atención configurable (/admin → Configuración), o el propio del
+ * servicio elegido si se cargó uno (ver helpers.resolveScheduleHours) —
+ * antes era fijo acá (08:00 a 17:00). */
 async function washBusinessHours() {
   const settings = await settingsService.get();
-  return helpers.generateHourlySlots(settings.business_hours_start || '08:30', settings.business_hours_end || '16:30');
+  const hours = helpers.resolveScheduleHours(washState.service, settings);
+  return helpers.generateHourlySlots(hours.start, hours.end);
 }
 
 /**

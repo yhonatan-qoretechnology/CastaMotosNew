@@ -1908,6 +1908,18 @@ textarea {
   }
 }
 
+/* Descripción/atributos del producto (antes vivían adentro de la columna
+   derecha de .detail-grid, apretados a la mitad del ancho junto con la caja
+   de compra, vendedor, pagos y compartir — se sacan afuera del grid acá
+   para que el texto largo tenga todo el ancho de la página, como cualquier
+   otra sección de la ficha). */
+.product-description-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--gris-borde);
+  max-width: 900px;
+}
+
 /* Caja de compra (columna derecha del detalle, como en un marketplace):
    agrupa precio/stock/cantidad/CTA en un bloque con borde propio en vez de
    quedar sueltos en la columna. */

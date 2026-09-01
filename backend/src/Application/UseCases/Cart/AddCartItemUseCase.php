@@ -22,18 +22,46 @@ final class AddCartItemUseCase
     public function handle(int $cartId, ?int $productId, ?int $serviceId, int $quantity, ?string $scheduledAt = null): void
     {
         if ($productId !== null) {
-            $this->addProduct($cartId, $productId, $quantity);
+            $this->addProduct($cartId, $productId, $quantity, $scheduledAt);
             return;
         }
 
         $this->addService($cartId, $serviceId, $quantity, $scheduledAt);
     }
 
-    private function addProduct(int $cartId, int $productId, int $quantity): void
+    private function addProduct(int $cartId, int $productId, int $quantity, ?string $scheduledAt): void
     {
         $product = $this->products->find($productId);
         if ($product === null || $product['status'] !== 'active') {
             throw new NotFoundException('Producto no encontrado.');
+        }
+
+        // Mismo toggle opcional que ya existe en servicios (ver addService()
+        // más abajo) — un producto que requiere agendar (ej. algo que se
+        // instala en el taller) queda como su propia fila con fecha/hora,
+        // nunca sumado a una fila existente.
+        if ((int) ($product['requires_scheduling'] ?? 0) === 1) {
+            if ($scheduledAt === null || $scheduledAt === '') {
+                throw new ValidationException('No fue posible agendar el producto.', [
+                    'scheduled_at' => ['Debes elegir una fecha y hora para este producto.'],
+                ]);
+            }
+
+            $timestamp = strtotime($scheduledAt);
+            if ($timestamp === false || $timestamp <= time()) {
+                throw new ValidationException('No fue posible agendar el producto.', [
+                    'scheduled_at' => ['La fecha y hora deben ser válidas y futuras.'],
+                ]);
+            }
+
+            if ($quantity > (int) $product['stock']) {
+                throw new ValidationException('No fue posible agregar el producto.', [
+                    'quantity' => ['La cantidad solicitada supera el stock disponible.'],
+                ]);
+            }
+
+            $this->carts->addItem($cartId, $productId, null, $quantity, (float) $product['price'], date('Y-m-d H:i:s', $timestamp));
+            return;
         }
 
         $existing = $this->carts->findExistingItem($cartId, $productId, null);

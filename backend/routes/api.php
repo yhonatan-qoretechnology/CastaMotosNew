@@ -108,6 +108,7 @@ $router->delete('api/admin/suppliers/{id}', [SupplierController::class, 'destroy
 // --- Productos (Fase 3 / secciones 10-11) ---
 $router->get('api/products', [ProductController::class, 'index'], [new OptionalAuthMiddleware()]);
 $router->get('api/products/{slug}', [ProductController::class, 'show'], [new OptionalAuthMiddleware()]);
+$router->get('api/products/{id}/booked-times', [ProductController::class, 'bookedTimes']);
 $router->post('api/products', [ProductController::class, 'store'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
 $router->put('api/products/{id}', [ProductController::class, 'update'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);
 $router->delete('api/products/{id}', [ProductController::class, 'destroy'], [new AuthMiddleware(), new RequirePermissionMiddleware('manage-products')]);

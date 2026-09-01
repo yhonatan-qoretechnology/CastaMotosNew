@@ -26,6 +26,67 @@ function productImageUrls(product) {
     : [];
 }
 
+/**
+ * La mayoría de los productos no se agendan — este toggle es opcional
+ * (/admin → Productos → "Requiere agendar fecha y hora"), pensado para algo
+ * que además de comprarse necesita un turno (ej. se instala en el taller).
+ * Mismo mecanismo que ya usa servicio.js para servicios: horario laboral
+ * configurable + choque contra reservas ya confirmadas (ver
+ * catalogService.productBookedTimes / ProductController::bookedTimes).
+ */
+function productRequiresScheduling(product) {
+  return Number(product.requires_scheduling ?? 0) === 1;
+}
+
+let selectedProductReservationTime = '';
+
+/** Igual que loadServiceTimeSlots() en servicio.js, pero para un producto agendado. */
+async function loadProductTimeSlots(product, date) {
+  const mount = document.getElementById('product-reservation-time-slots');
+  mount.innerHTML = '<p class="loading-state">Cargando horarios…</p>';
+  selectedProductReservationTime = '';
+  document.getElementById('add-to-cart-btn').disabled = true;
+
+  try {
+    const [booked, settings] = await Promise.all([
+      catalogService.productBookedTimes(product.id, date),
+      settingsService.get(),
+    ]);
+    const hours = helpers.resolveScheduleHours(product, settings);
+    const businessHours = helpers.generateHourlySlots(hours.start, hours.end);
+    const isToday = date === new Date().toISOString().slice(0, 10);
+    const nowHour = new Date().getHours();
+
+    mount.innerHTML = `
+      <div class="wash-time-grid">
+        ${businessHours.map((time) => {
+          const isBooked = booked.includes(time);
+          const isPast = isToday && Number(time.slice(0, 2)) <= nowHour;
+          const disabled = isBooked || isPast;
+          return `
+            <button type="button" class="wash-time-slot ${disabled ? 'is-disabled' : ''}"
+                    data-time="${time}" ${disabled ? 'disabled' : ''} title="${isBooked ? 'Ya reservado' : isPast ? 'Hora pasada' : ''}">
+              ${time}
+            </button>
+          `;
+        }).join('')}
+      </div>
+      ${booked.length === businessHours.length ? '<p class="error-state mt-16">No quedan horarios libres este día — probá con otra fecha.</p>' : ''}
+    `;
+
+    mount.querySelectorAll('.wash-time-slot:not(.is-disabled)').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedProductReservationTime = btn.dataset.time;
+        mount.querySelectorAll('.wash-time-slot').forEach((el) => el.classList.remove('is-selected'));
+        btn.classList.add('is-selected');
+        document.getElementById('add-to-cart-btn').disabled = false;
+      });
+    });
+  } catch (error) {
+    mount.innerHTML = '<p class="error-state">No fue posible cargar los horarios disponibles.</p>';
+  }
+}
+
 function variantOptionsMarkup(product) {
   if (!product.variants || product.variants.length === 0) return '';
 
@@ -98,6 +159,60 @@ function paymentMethodsMarkup(methods) {
   `;
 }
 
+/**
+ * Cantidad + "Agregar al carrito" para el caso normal; si el producto pide
+ * agendar (sección nueva, ver productRequiresScheduling()), se reemplaza por
+ * el mismo flujo de fecha/hora que servicio.js — login primero si hace falta
+ * (nunca se deja completar fecha/hora para recién ahí pedir la sesión), y
+ * recién con sesión aparece el selector real.
+ */
+function purchaseActionMarkup(product, stockStatus) {
+  if (!productRequiresScheduling(product)) {
+    return `
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="form-group" style="max-width:160px;">
+          <label for="add-quantity">Cantidad ${stockStatus !== 'agotado' ? `<span class="stock-hint">(+${product.stock} disp.)</span>` : ''}</label>
+          <input class="form-control" type="number" id="add-quantity" value="1" min="1" max="${product.stock}">
+        </div>
+        <div class="form-group" style="flex:2;">
+          <button class="btn btn-primary btn-block" id="add-to-cart-btn" ${stockStatus === 'agotado' ? 'disabled' : ''}>
+            ${stockStatus === 'agotado' ? 'Agotado' : 'Agregar al carrito'}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (stockStatus === 'agotado') {
+    return `<button class="btn btn-primary btn-block" disabled>Agotado</button>`;
+  }
+
+  if (!authService.isAuthenticated()) {
+    return `
+      <p style="color:var(--gris-texto);margin:12px 0 0;">Necesitás iniciar sesión antes de poder elegir fecha y hora.</p>
+      <button class="btn btn-primary btn-block mt-16" id="product-reservation-login-btn">Iniciar sesión para agendar</button>
+    `;
+  }
+
+  return `
+    <div class="form-group mt-16">
+      <label for="add-quantity">Cantidad <span class="stock-hint">(+${product.stock} disp.)</span></label>
+      <input class="form-control" type="number" id="add-quantity" value="1" min="1" max="${product.stock}" style="max-width:160px;">
+    </div>
+    <div class="form-group">
+      <label for="product-reservation-date">Fecha</label>
+      <input type="date" class="form-control" id="product-reservation-date" style="max-width:220px;">
+    </div>
+    <div class="form-group">
+      <label>Hora</label>
+      <div id="product-reservation-time-slots" class="wash-time-slots">
+        <p class="loading-state">Elegí una fecha para ver los horarios disponibles.</p>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" id="add-to-cart-btn" disabled>Agendar y agregar al carrito</button>
+  `;
+}
+
 function renderProductDetail(product) {
   const stockStatus = product.stock_status || 'disponible';
   const stockLabel = { disponible: 'Disponible', ultimas_unidades: `Últimas unidades (${product.stock} disp.)`, agotado: 'Agotado' }[stockStatus];
@@ -132,17 +247,7 @@ function renderProductDetail(product) {
 
           ${variantOptionsMarkup(product)}
 
-          <div class="form-row" style="align-items:flex-end;">
-            <div class="form-group" style="max-width:160px;">
-              <label for="add-quantity">Cantidad ${stockStatus !== 'agotado' ? `<span class="stock-hint">(+${product.stock} disp.)</span>` : ''}</label>
-              <input class="form-control" type="number" id="add-quantity" value="1" min="1" max="${product.stock}">
-            </div>
-            <div class="form-group" style="flex:2;">
-              <button class="btn btn-primary btn-block" id="add-to-cart-btn" ${stockStatus === 'agotado' ? 'disabled' : ''}>
-                ${stockStatus === 'agotado' ? 'Agotado' : 'Agregar al carrito'}
-              </button>
-            </div>
-          </div>
+          ${purchaseActionMarkup(product, stockStatus)}
 
           <button class="btn btn-secondary btn-block" id="favorite-btn">
             ${product.is_favorite ? '♥ En favoritos' : '♡ Agregar a favoritos'}
@@ -169,15 +274,17 @@ function renderProductDetail(product) {
             <button type="button" id="copy-link-btn">Copiar enlace</button>
           </div>
         </div>
-
-        ${attributesMarkup(product)}
-        ${product.description ? `
-          <div class="mt-16">
-            <h2 class="specs-title">Descripción</h2>
-            <div style="color:var(--gris-texto);white-space:pre-line;">${helpers.escapeHtml(product.description)}</div>
-          </div>
-        ` : ''}
       </div>
+    </div>
+
+    <div class="product-description-section">
+      ${attributesMarkup(product)}
+      ${product.description ? `
+        <div class="mt-16">
+          <h2 class="specs-title">Descripción</h2>
+          <div style="color:var(--gris-texto);white-space:pre-line;">${helpers.escapeHtml(product.description)}</div>
+        </div>
+      ` : ''}
     </div>
 
     <div class="section">
@@ -202,25 +309,57 @@ function wireProductDetailEvents(product) {
     event.target.remove();
   });
 
-  document.getElementById('add-to-cart-btn')?.addEventListener('click', async () => {
-    const quantity = Number(document.getElementById('add-quantity').value) || 1;
-    try {
-      // Si ya está en el carrito, se lo avisa en vez de sumarlo en silencio
-      // — el backend igual lo suma a la misma fila (nunca lo duplica), esto
-      // es solo para que no se lleve una sorpresa con la cantidad final.
-      const cart = await cartService.get();
-      const existing = cart.items.find((item) => item.type === 'product' && item.reference_id === product.id);
-      if (existing && !window.confirm(`Ya tenés ${existing.quantity} de "${product.name}" en tu carrito. ¿Agregar ${quantity} más?`)) {
+  if (productRequiresScheduling(product) && !authService.isAuthenticated()) {
+    // purchaseActionMarkup() ya reemplazó cantidad/botón por este botón de
+    // login — ni #product-reservation-date ni #add-to-cart-btn existen acá.
+    document.getElementById('product-reservation-login-btn')?.addEventListener('click', () => openAuthModal('login'));
+  } else if (productRequiresScheduling(product)) {
+    const dateInput = document.getElementById('product-reservation-date');
+    if (dateInput) {
+      dateInput.min = new Date().toISOString().slice(0, 10);
+      dateInput.addEventListener('change', () => {
+        if (dateInput.value) loadProductTimeSlots(product, dateInput.value);
+      });
+    }
+
+    document.getElementById('add-to-cart-btn')?.addEventListener('click', async () => {
+      const quantity = Number(document.getElementById('add-quantity').value) || 1;
+      const date = dateInput.value;
+
+      if (!date || !selectedProductReservationTime) {
+        helpers.toast('Elige una fecha y una hora para agendar el producto.', 'error');
         return;
       }
 
-      await cartService.addItem({ product_id: product.id, quantity });
-      helpers.toast('Producto agregado al carrito.', 'success');
-      refreshCartBadge();
-    } catch (error) {
-      helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
-    }
-  });
+      try {
+        await cartService.addItem({ product_id: product.id, quantity, scheduled_at: `${date} ${selectedProductReservationTime}:00` });
+        helpers.toast('Producto agendado y agregado al carrito.', 'success');
+        refreshCartBadge();
+      } catch (error) {
+        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+      }
+    });
+  } else {
+    document.getElementById('add-to-cart-btn')?.addEventListener('click', async () => {
+      const quantity = Number(document.getElementById('add-quantity').value) || 1;
+      try {
+        // Si ya está en el carrito, se lo avisa en vez de sumarlo en silencio
+        // — el backend igual lo suma a la misma fila (nunca lo duplica), esto
+        // es solo para que no se lleve una sorpresa con la cantidad final.
+        const cart = await cartService.get();
+        const existing = cart.items.find((item) => item.type === 'product' && item.reference_id === product.id);
+        if (existing && !window.confirm(`Ya tenés ${existing.quantity} de "${product.name}" en tu carrito. ¿Agregar ${quantity} más?`)) {
+          return;
+        }
+
+        await cartService.addItem({ product_id: product.id, quantity });
+        helpers.toast('Producto agregado al carrito.', 'success');
+        refreshCartBadge();
+      } catch (error) {
+        helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+      }
+    });
+  }
 
   document.getElementById('favorite-btn').addEventListener('click', async () => {
     if (!authService.isAuthenticated()) {

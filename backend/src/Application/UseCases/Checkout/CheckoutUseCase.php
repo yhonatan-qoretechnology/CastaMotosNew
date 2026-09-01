@@ -205,7 +205,10 @@ final class CheckoutUseCase
                 ]);
             }
 
-            if ($item['type'] === 'service' && ($item['requires_scheduling'] ?? true) && empty($item['scheduled_at'])) {
+            // Antes solo se revisaba en servicios — ahora un producto también puede
+            // requerir agendar (mismo toggle, ver AddCartItemUseCase::addProduct()),
+            // así que la validación mira "requires_scheduling" sin importar el tipo.
+            if (($item['requires_scheduling'] ?? false) && empty($item['scheduled_at'])) {
                 throw new ValidationException('No fue posible confirmar el pedido.', [
                     'cart' => ["\"{$item['name']}\" no tiene fecha y hora agendada."],
                 ]);

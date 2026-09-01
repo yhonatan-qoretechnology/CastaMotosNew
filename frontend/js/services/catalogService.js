@@ -30,10 +30,13 @@ const catalogService = {
 
   products: (filters = {}) => apiService.get('/products' + toQueryString(filters)),
   product: (slug) => apiService.get(`/products/${encodeURIComponent(slug)}`),
+  productBookedTimes: (productId, date) => apiService.get(`/products/${productId}/booked-times` + toQueryString({ date })),
 
   // Gestión de productos (panel admin) — requiere permiso manage-products.
   createProduct: (payload) => apiService.post('/products', payload),
   updateProduct: (id, payload) => apiService.put(`/products/${id}`, payload),
+  syncProductVariants: (id, variants) => apiService.put(`/products/${id}/variants`, { variants }),
+  syncProductAttributes: (id, attributes) => apiService.put(`/products/${id}/attributes`, { attributes }),
   deleteProduct: (id) => apiService.del(`/products/${id}`),
   uploadProductImage: (id, file, isPrimary = false) => {
     const formData = new FormData();

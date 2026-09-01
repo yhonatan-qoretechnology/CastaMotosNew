@@ -61,6 +61,13 @@ final class ProductController
         'weight' => 'numeric|gte:0',
         'dimensions' => 'max:100',
         'warranty' => 'max:150',
+        // Mismo campo opcional que ya existe en servicios (ver ServiceController) —
+        // productos que requieren un turno además de la compra (ej. instalación).
+        'requires_scheduling' => 'boolean',
+        // Horario de atención propio (opcional, mismo patrón que shipping_cost) —
+        // vacío = usa el horario general del sitio (site_settings).
+        'schedule_hours_start' => 'max:5',
+        'schedule_hours_end' => 'max:5',
         'status' => 'in:draft,active,inactive,out_of_stock',
     ];
 
@@ -104,6 +111,14 @@ final class ProductController
             : false;
 
         Response::success($product);
+    }
+
+    /** Horas ya ocupadas de este producto en una fecha (mismo mecanismo que servicios) — público. */
+    public function bookedTimes(Request $request, string $id): void
+    {
+        $data = Validator::make($request->query(), ['date' => 'required'])->validate();
+
+        Response::success($this->products->bookedTimesForDate((int) $id, $data['date']));
     }
 
     public function store(Request $request): void

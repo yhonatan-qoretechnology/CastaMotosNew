@@ -47,4 +47,7 @@ interface ProductRepositoryInterface
 
     // --- Inventario (sección 25, se activa por completo en la Fase 6) ---
     public function initializeInventory(int $productId, int $stock, int $minStock): void;
+
+    // --- Agendamiento opcional (mismo mecanismo que ServiceRepositoryInterface) ---
+    public function bookedTimesForDate(int $productId, string $date): array;
 }

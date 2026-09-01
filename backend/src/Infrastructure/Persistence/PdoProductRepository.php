@@ -318,11 +318,13 @@ final class PdoProductRepository implements ProductRepositoryInterface
             'INSERT INTO products (
                 store_id, category_id, brand_id, supplier_id, name, name_en, slug, description, short_description, short_description_en,
                 sku, internal_code, price, shipping_cost, previous_price, discount_percentage, tax_rate,
-                stock, min_stock, weight, dimensions, warranty, additional_info, status
+                stock, min_stock, weight, dimensions, warranty, additional_info,
+                requires_scheduling, schedule_hours_start, schedule_hours_end, status
             ) VALUES (
                 :store_id, :category_id, :brand_id, :supplier_id, :name, :name_en, :slug, :description, :short_description, :short_description_en,
                 :sku, :internal_code, :price, :shipping_cost, :previous_price, :discount_percentage, :tax_rate,
-                :stock, :min_stock, :weight, :dimensions, :warranty, :additional_info, :status
+                :stock, :min_stock, :weight, :dimensions, :warranty, :additional_info,
+                :requires_scheduling, :schedule_hours_start, :schedule_hours_end, :status
             )'
         );
         $stmt->execute($this->bindings($data));
@@ -341,7 +343,8 @@ final class PdoProductRepository implements ProductRepositoryInterface
                 previous_price = :previous_price,
                 discount_percentage = :discount_percentage, tax_rate = :tax_rate, stock = :stock,
                 min_stock = :min_stock, weight = :weight, dimensions = :dimensions, warranty = :warranty,
-                additional_info = :additional_info, status = :status
+                additional_info = :additional_info, requires_scheduling = :requires_scheduling,
+                schedule_hours_start = :schedule_hours_start, schedule_hours_end = :schedule_hours_end, status = :status
              WHERE id = :id'
         );
         $stmt->execute($this->bindings($data) + ['id' => $id]);
@@ -373,8 +376,28 @@ final class PdoProductRepository implements ProductRepositoryInterface
             'dimensions' => $data['dimensions'] ?? null,
             'warranty' => $data['warranty'] ?? null,
             'additional_info' => $data['additional_info'] ?? null,
+            'requires_scheduling' => array_key_exists('requires_scheduling', $data) ? (int) $data['requires_scheduling'] : 0,
+            'schedule_hours_start' => $data['schedule_hours_start'] ?? null,
+            'schedule_hours_end' => $data['schedule_hours_end'] ?? null,
             'status' => $data['status'] ?? 'draft',
         ];
+    }
+
+    /** Mismo mecanismo que PdoServiceRepository::bookedTimesForDate() — horas ya ocupadas de este producto en una fecha. */
+    public function bookedTimesForDate(int $productId, string $date): array
+    {
+        $stmt = $this->connection->prepare(
+            "SELECT oi.scheduled_at FROM order_items oi
+                INNER JOIN orders o ON o.id = oi.order_id
+             WHERE oi.product_id = :product_id AND DATE(oi.scheduled_at) = :date
+                AND o.status != 'CANCELADO'"
+        );
+        $stmt->execute(['product_id' => $productId, 'date' => $date]);
+
+        return array_map(
+            static fn (string $scheduledAt) => date('H:i', strtotime($scheduledAt)),
+            $stmt->fetchAll(PDO::FETCH_COLUMN)
+        );
     }
 
     public function delete(int $id): void

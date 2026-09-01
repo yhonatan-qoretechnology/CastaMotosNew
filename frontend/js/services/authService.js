@@ -29,10 +29,16 @@ const authService = {
       localStorage.setItem('castamoto_user', JSON.stringify(user));
       return user;
     } catch (error) {
-      // Token vencido o inválido: se limpia la sesión para no quedar en un
-      // estado inconsistente (token guardado pero backend ya no lo reconoce).
-      this.logout();
-      return null;
+      // Un 401 real (token vencido/inválido) ya lo maneja apiService por su
+      // cuenta (limpia la sesión y recarga con el aviso de "sesión expirada"
+      // — ver el interceptor en apiService.js), así que si el error llega
+      // hasta acá NO es eso: es un error de red o una petición cancelada
+      // (ej. recargar la página varias veces seguidas aborta el fetch en
+      // vuelo). Antes esto cerraba la sesión igual, echando afuera a
+      // cualquiera que recargara rápido con un token perfectamente válido —
+      // ahora se deja la sesión guardada como estaba (best-effort, mismo
+      // criterio que otros datos secundarios del sitio).
+      return this.currentUser();
     }
   },
 

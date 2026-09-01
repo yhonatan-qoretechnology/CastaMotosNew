@@ -41,6 +41,10 @@ final class ServiceController
         'shipping_cost' => 'numeric|gte:0',
         'duration_minutes' => 'integer|gte:0',
         'requires_scheduling' => 'boolean',
+        // Horario de atención propio (opcional, mismo patrón que shipping_cost) —
+        // vacío = usa el horario general del sitio (site_settings).
+        'schedule_hours_start' => 'max:5',
+        'schedule_hours_end' => 'max:5',
         'is_informational' => 'boolean',
         'location' => 'max:255',
         'latitude' => 'numeric',

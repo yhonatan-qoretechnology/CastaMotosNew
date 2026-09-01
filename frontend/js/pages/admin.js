@@ -501,6 +501,18 @@ function renderServiceImageThumb(serviceId, image) {
   updateImageCounter('service');
 }
 
+/**
+ * El horario de atención propio (opcional, mismo patrón que shipping_cost)
+ * solo tiene sentido si el servicio/producto realmente agenda fecha y hora
+ * — se oculta cuando "Requiere agendar fecha y hora" está desmarcado, en vez
+ * de dejarlo siempre visible y confundir con un campo que no hace nada.
+ */
+function toggleScheduleHoursVisibility(prefix) {
+  const requiresScheduling = document.getElementById(`${prefix}-requires-scheduling`).checked;
+  document.getElementById(`${prefix}-schedule-hours-row`).hidden = !requiresScheduling;
+  document.getElementById(`${prefix}-schedule-hours-hint`).hidden = !requiresScheduling;
+}
+
 function resetServiceForm() {
   document.getElementById('service-form').reset();
   document.getElementById('service-id').value = '';
@@ -512,6 +524,7 @@ function resetServiceForm() {
   document.getElementById('service-modal-title').textContent = 'Nuevo servicio';
   document.getElementById('service-submit-btn').textContent = 'Crear servicio';
   document.getElementById('service-form-error').textContent = '';
+  toggleScheduleHoursVisibility('service');
 }
 
 // Ubicación del local (CRA 20 #17-35, Manizales) — mismo valor que el
@@ -541,6 +554,9 @@ async function openServiceForm(slug) {
     document.getElementById('service-duration').value = service.duration_minutes || '';
     document.getElementById('service-shipping-cost').value = service.shipping_cost ?? '';
     document.getElementById('service-requires-scheduling').checked = Number(service.requires_scheduling ?? 1) !== 0;
+    document.getElementById('service-schedule-hours-start').value = service.schedule_hours_start || '';
+    document.getElementById('service-schedule-hours-end').value = service.schedule_hours_end || '';
+    toggleScheduleHoursVisibility('service');
     document.getElementById('service-is-informational').checked = Number(service.is_informational ?? 0) !== 0;
     document.getElementById('service-location').value = service.location || '';
     document.getElementById('service-latitude').value = service.latitude ?? DEFAULT_SERVICE_LATITUDE;
@@ -577,6 +593,8 @@ function serviceFormPayload() {
     duration_minutes: document.getElementById('service-duration').value || undefined,
     shipping_cost: document.getElementById('service-shipping-cost').value !== '' ? document.getElementById('service-shipping-cost').value : undefined,
     requires_scheduling: document.getElementById('service-requires-scheduling').checked,
+    schedule_hours_start: document.getElementById('service-schedule-hours-start').value || undefined,
+    schedule_hours_end: document.getElementById('service-schedule-hours-end').value || undefined,
     is_informational: document.getElementById('service-is-informational').checked,
     location: document.getElementById('service-location').value.trim() || undefined,
     latitude: document.getElementById('service-latitude').value || undefined,
@@ -596,6 +614,8 @@ function wireServiceManagement() {
   document.getElementById('service-modal-overlay').addEventListener('click', (event) => {
     if (event.target === document.getElementById('service-modal-overlay')) closeServiceForm();
   });
+
+  document.getElementById('service-requires-scheduling').addEventListener('change', () => toggleScheduleHoursVisibility('service'));
 
   document.getElementById('service-use-location-btn').addEventListener('click', () => {
     if (!navigator.geolocation) {
@@ -801,11 +821,21 @@ function resetProductForm() {
   document.getElementById('product-images-section').hidden = true;
   document.getElementById('product-image-input').disabled = false;
   document.getElementById('product-images-count').textContent = '(0/6)';
+  document.getElementById('product-variants-list').innerHTML = '';
+  // A diferencia de fotos (necesitan un id real para subirse), variantes y
+  // atributos son texto simple — se pueden escribir ANTES de crear el
+  // producto y se guardan junto con él (ver el submit de más abajo), en vez
+  // de obligar a crear primero y recién ahí, en un segundo paso, enterarse
+  // de que existía la opción de cargar tallas/colores.
+  document.getElementById('product-variants-section').hidden = false;
+  document.getElementById('product-attributes-list').innerHTML = '';
+  document.getElementById('product-attributes-section').hidden = false;
   document.getElementById('product-stock').disabled = false;
   document.getElementById('product-stock-hint').hidden = true;
   document.getElementById('product-modal-title').textContent = 'Nuevo producto';
   document.getElementById('product-submit-btn').textContent = 'Crear producto';
   document.getElementById('product-form-error').textContent = '';
+  toggleScheduleHoursVisibility('product');
 }
 
 /** @param {string|null} slug - null para crear, slug del producto para editar. */
@@ -833,6 +863,11 @@ async function openProductForm(slug) {
     document.getElementById('product-min-stock').value = product.min_stock || 0;
     document.getElementById('product-short-description').value = product.short_description || '';
     document.getElementById('product-short-description-en').value = product.short_description_en || '';
+    document.getElementById('product-description').value = product.description || '';
+    document.getElementById('product-requires-scheduling').checked = Number(product.requires_scheduling ?? 0) === 1;
+    document.getElementById('product-schedule-hours-start').value = product.schedule_hours_start || '';
+    document.getElementById('product-schedule-hours-end').value = product.schedule_hours_end || '';
+    toggleScheduleHoursVisibility('product');
     document.getElementById('product-warranty').value = product.warranty || '';
     document.getElementById('product-status').value = product.status;
 
@@ -846,10 +881,78 @@ async function openProductForm(slug) {
     const imagesSection = document.getElementById('product-images-section');
     imagesSection.hidden = false;
     (product.images || []).forEach((image) => renderProductImageThumb(product.id, image));
+
+    document.getElementById('product-variants-section').hidden = false;
+    document.getElementById('product-attributes-section').hidden = false;
+    renderProductVariantRows(product.variants);
+    renderProductAttributeRows(product.attributes);
   } catch (error) {
     helpers.toast(error.message, 'error');
     closeProductForm();
   }
+}
+
+/**
+ * Variantes de producto (talla, color, etc. — sección nueva) — cada una con
+ * su propio SKU/precio/stock si aplica (product_variants, ya existía del
+ * lado del backend — SyncProductVariantsUseCase — pero sin ninguna pantalla
+ * en el admin para gestionarlas hasta ahora). A diferencia de las fotos
+ * (necesitan un id real para subirse), se pueden cargar desde el alta misma:
+ * el submit del formulario las manda junto con el producto nuevo (ver
+ * wireProductManagement); el botón "Guardar variantes" de acá abajo es para
+ * agregar/quitar después, editando un producto que ya existe.
+ */
+function renderProductVariantRows(variants) {
+  const list = document.getElementById('product-variants-list');
+  list.innerHTML = (variants || []).map((variant) => `
+    <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
+      <div class="form-group"><label>Nombre</label><input class="form-control variant-name" value="${helpers.escapeHtml(variant.name || '')}" placeholder="Ej. Talla M"></div>
+      <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku" value="${helpers.escapeHtml(variant.sku || '')}"></div>
+      <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="${variant.price_modifier ?? 0}"></div>
+      <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="${variant.stock ?? 0}"></div>
+      <button class="btn btn-secondary" type="button" data-action="remove-variant-row">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="remove-variant-row"]').forEach((btn) => {
+    btn.addEventListener('click', () => btn.closest('[data-variant-row]').remove());
+  });
+}
+
+function collectProductVariantRows() {
+  return Array.from(document.querySelectorAll('#product-variants-list [data-variant-row]'))
+    .map((row) => ({
+      name: row.querySelector('.variant-name').value.trim(),
+      sku: row.querySelector('.variant-sku').value.trim() || undefined,
+      price_modifier: row.querySelector('.variant-price').value || 0,
+      stock: row.querySelector('.variant-stock').value || 0,
+    }))
+    .filter((variant) => variant.name);
+}
+
+/** Atributos/especificaciones (product_attributes) — mismo criterio que variantes: ya existía en el backend, faltaba la pantalla. */
+function renderProductAttributeRows(attributes) {
+  const list = document.getElementById('product-attributes-list');
+  list.innerHTML = (attributes || []).map((attribute) => `
+    <div class="form-row" data-attribute-row style="align-items:flex-end;margin-bottom:8px;">
+      <div class="form-group"><label>Nombre</label><input class="form-control attribute-name" value="${helpers.escapeHtml(attribute.name || '')}" placeholder="Ej. Material"></div>
+      <div class="form-group"><label>Valor</label><input class="form-control attribute-value" value="${helpers.escapeHtml(attribute.value || '')}" placeholder="Ej. Cuero"></div>
+      <button class="btn btn-secondary" type="button" data-action="remove-attribute-row">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="remove-attribute-row"]').forEach((btn) => {
+    btn.addEventListener('click', () => btn.closest('[data-attribute-row]').remove());
+  });
+}
+
+function collectProductAttributeRows() {
+  return Array.from(document.querySelectorAll('#product-attributes-list [data-attribute-row]'))
+    .map((row) => ({
+      name: row.querySelector('.attribute-name').value.trim(),
+      value: row.querySelector('.attribute-value').value.trim(),
+    }))
+    .filter((attribute) => attribute.name && attribute.value);
 }
 
 function closeProductForm() {
@@ -862,8 +965,10 @@ function productFormPayload() {
   return {
     name: document.getElementById('product-name').value.trim(),
     name_en: document.getElementById('product-name-en').value.trim() || undefined,
-    // Vacío = el backend genera un SKU único automático (sección 10); en
-    // edición, vacío conserva el SKU actual (ver UpdateProductUseCase).
+    // El campo está deshabilitado a propósito (nunca se escribe a mano): al
+    // crear, vacío = el backend genera un SKU único automático (sección 10);
+    // al editar, sigue mostrando (y reenviando sin cambios) el SKU real ya
+    // asignado — ver UpdateProductUseCase.
     sku: document.getElementById('product-sku').value.trim() || undefined,
     category_id: document.getElementById('product-category').value,
     brand_id: document.getElementById('product-brand').value || undefined,
@@ -876,8 +981,12 @@ function productFormPayload() {
     // cumple sin permitir que este formulario lo cambie de verdad.
     stock: document.getElementById('product-stock').value || (isEditing ? '0' : undefined),
     min_stock: document.getElementById('product-min-stock').value || undefined,
+    requires_scheduling: document.getElementById('product-requires-scheduling').checked,
+    schedule_hours_start: document.getElementById('product-schedule-hours-start').value || undefined,
+    schedule_hours_end: document.getElementById('product-schedule-hours-end').value || undefined,
     short_description: document.getElementById('product-short-description').value.trim() || undefined,
     short_description_en: document.getElementById('product-short-description-en').value.trim() || undefined,
+    description: document.getElementById('product-description').value.trim() || undefined,
     warranty: document.getElementById('product-warranty').value.trim() || undefined,
     status: document.getElementById('product-status').value,
   };
@@ -890,6 +999,8 @@ function wireProductManagement() {
     if (event.target === document.getElementById('product-modal-overlay')) closeProductForm();
   });
 
+  document.getElementById('product-requires-scheduling').addEventListener('change', () => toggleScheduleHoursVisibility('product'));
+
   document.getElementById('product-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const errorBox = document.getElementById('product-form-error');
@@ -897,6 +1008,12 @@ function wireProductManagement() {
 
     const id = document.getElementById('product-id').value;
     const payload = productFormPayload();
+    // Se leen ANTES de crear el producto: en el alta, variantes/atributos ya
+    // se ven en el formulario (no hace falta guardar primero y volver a
+    // entrar a editar), así que lo que haya cargado el vendedor acá se manda
+    // junto con el producto nuevo.
+    const variantRows = collectProductVariantRows();
+    const attributeRows = collectProductAttributeRows();
 
     try {
       let product;
@@ -905,6 +1022,10 @@ function wireProductManagement() {
         helpers.toast('Producto actualizado.', 'success');
       } else {
         product = await catalogService.createProduct(payload);
+
+        if (variantRows.length > 0) await catalogService.syncProductVariants(product.id, variantRows);
+        if (attributeRows.length > 0) await catalogService.syncProductAttributes(product.id, attributeRows);
+
         helpers.toast('Producto creado. Ahora puedes agregarle fotos.', 'success');
       }
 
@@ -920,6 +1041,8 @@ function wireProductManagement() {
       document.getElementById('product-stock').disabled = true;
       document.getElementById('product-stock-hint').hidden = false;
       document.getElementById('product-images-section').hidden = false;
+      document.getElementById('product-variants-section').hidden = false;
+      document.getElementById('product-attributes-section').hidden = false;
 
       loadProductsAdmin();
     } catch (error) {
@@ -950,6 +1073,70 @@ function wireProductManagement() {
     }
 
     event.target.value = '';
+  });
+
+  document.getElementById('product-variant-add-btn').addEventListener('click', () => {
+    const list = document.getElementById('product-variants-list');
+    list.insertAdjacentHTML('beforeend', `
+      <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
+        <div class="form-group"><label>Nombre</label><input class="form-control variant-name" placeholder="Ej. Talla M"></div>
+        <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku"></div>
+        <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="0"></div>
+        <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="0"></div>
+        <button class="btn btn-secondary" type="button" data-action="remove-variant-row">✕</button>
+      </div>
+    `);
+    list.lastElementChild.querySelector('[data-action="remove-variant-row"]').addEventListener('click', (event) => {
+      event.target.closest('[data-variant-row]').remove();
+    });
+  });
+
+  document.getElementById('product-variants-save-btn').addEventListener('click', async () => {
+    const productId = document.getElementById('product-id').value;
+    const errorBox = document.getElementById('product-variants-error');
+    errorBox.textContent = '';
+    if (!productId) {
+      errorBox.textContent = 'Primero creá el producto con el botón "Crear producto" — las variantes que ya cargaste se guardan junto con él.';
+      return;
+    }
+
+    try {
+      await catalogService.syncProductVariants(productId, collectProductVariantRows());
+      helpers.toast('Variantes guardadas.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
+  });
+
+  document.getElementById('product-attribute-add-btn').addEventListener('click', () => {
+    const list = document.getElementById('product-attributes-list');
+    list.insertAdjacentHTML('beforeend', `
+      <div class="form-row" data-attribute-row style="align-items:flex-end;margin-bottom:8px;">
+        <div class="form-group"><label>Nombre</label><input class="form-control attribute-name" placeholder="Ej. Material"></div>
+        <div class="form-group"><label>Valor</label><input class="form-control attribute-value" placeholder="Ej. Cuero"></div>
+        <button class="btn btn-secondary" type="button" data-action="remove-attribute-row">✕</button>
+      </div>
+    `);
+    list.lastElementChild.querySelector('[data-action="remove-attribute-row"]').addEventListener('click', (event) => {
+      event.target.closest('[data-attribute-row]').remove();
+    });
+  });
+
+  document.getElementById('product-attributes-save-btn').addEventListener('click', async () => {
+    const productId = document.getElementById('product-id').value;
+    const errorBox = document.getElementById('product-attributes-error');
+    errorBox.textContent = '';
+    if (!productId) {
+      errorBox.textContent = 'Primero creá el producto con el botón "Crear producto" — los atributos que ya cargaste se guardan junto con él.';
+      return;
+    }
+
+    try {
+      await catalogService.syncProductAttributes(productId, collectProductAttributeRows());
+      helpers.toast('Atributos guardados.', 'success');
+    } catch (error) {
+      errorBox.textContent = helpers.flattenErrors(error.fields) || error.message;
+    }
   });
 }
 
