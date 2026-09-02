@@ -366,10 +366,19 @@ final class PdoOrderRepository implements OrderRepositoryInterface
 
     public function findByOrderNumberForAdmin(string $orderNumber): ?array
     {
+        // Antes esto no traía la dirección real (solo address_id, un número
+        // sin uso para saber a dónde enviar el pedido) — el panel admin no
+        // tenía forma de ver a dónde despachar. LEFT JOIN (no INNER) porque
+        // address_id puede quedar en NULL si el cliente borra esa dirección
+        // guardada después de haber hecho el pedido (ON DELETE SET NULL).
         $stmt = $this->connection->prepare(
-            'SELECT o.*, u.name AS customer_name, u.last_name AS customer_last_name, u.email AS customer_email
+            'SELECT o.*, u.name AS customer_name, u.last_name AS customer_last_name, u.email AS customer_email, u.phone AS customer_phone,
+                    a.recipient_name AS address_recipient_name, a.phone AS address_phone, a.country AS address_country,
+                    a.state AS address_state, a.city AS address_city, a.address_line AS address_line,
+                    a.complement AS address_complement, a.postal_code AS address_postal_code, a.reference AS address_reference
              FROM orders o
              INNER JOIN users u ON u.id = o.user_id
+             LEFT JOIN addresses a ON a.id = o.address_id
              WHERE o.order_number = :number AND o.deleted_at IS NULL'
         );
         $stmt->execute(['number' => $orderNumber]);

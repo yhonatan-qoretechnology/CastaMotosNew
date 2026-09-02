@@ -171,7 +171,7 @@ async function loadOrders() {
 
     body.innerHTML = result.data.map((order) => `
       <tr data-order-number="${order.order_number}">
-        <td>${helpers.escapeHtml(order.order_number)}</td>
+        <td><button type="button" class="link-btn" data-action="view-order-detail">${helpers.escapeHtml(order.order_number)}</button></td>
         <td>${helpers.escapeHtml(order.customer_name)} ${helpers.escapeHtml(order.customer_last_name)}<br><span style="color:var(--gris-texto);">${helpers.escapeHtml(order.customer_email)}</span></td>
         <td>${helpers.formatCurrency(order.total)}</td>
         <td><span class="status-badge ${statusBadgeClass(order.status)}">${helpers.orderStatusLabel(order.status)}</span></td>
@@ -179,6 +179,12 @@ async function loadOrders() {
         <td>${nextStatusActionsMarkup(order.next_statuses || [])}</td>
       </tr>
     `).join('');
+
+    body.querySelectorAll('[data-action="view-order-detail"]').forEach((button) => {
+      button.addEventListener('click', () => {
+        openOrderDetailModal(button.closest('tr').dataset.orderNumber);
+      });
+    });
 
     body.querySelectorAll('[data-action="advance-status"]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -200,6 +206,121 @@ async function loadOrders() {
   } catch (error) {
     handleAdminError(error, errorBox);
   }
+}
+
+/**
+ * Detalle de un pedido (sección nueva, reporte: "cómo se ve el detalle del
+ * pedido, la dirección, todo, a dónde enviarlo") — antes la tabla de Pedidos
+ * no tenía forma de ver ni la dirección de envío ni qué se compró, solo
+ * cliente/total/estado. Reutiliza GET /admin/orders/{numero}, que ya existía
+ * en el backend (AdminOrderController::show) pero nunca se llamaba desde
+ * ningún lado del admin — el join con "addresses" para traer la dirección
+ * real (antes solo devolvía address_id, un número sin uso acá) se agregó en
+ * PdoOrderRepository::findByOrderNumberForAdmin() en esta misma tanda.
+ */
+function orderDetailMarkup(order) {
+  const addressLines = order.address_line
+    ? `
+      <p style="margin:0 0 4px;"><strong>${helpers.escapeHtml(order.address_recipient_name || '')}</strong> — ${helpers.escapeHtml(order.address_phone || order.customer_phone || '')}</p>
+      <p style="margin:0 0 4px;">${helpers.escapeHtml(order.address_line)}${order.address_complement ? `, ${helpers.escapeHtml(order.address_complement)}` : ''}</p>
+      <p style="margin:0 0 4px;">${helpers.escapeHtml(order.address_city)}, ${helpers.escapeHtml(order.address_state)}, ${helpers.escapeHtml(order.address_country)}${order.address_postal_code ? ` — ${helpers.escapeHtml(order.address_postal_code)}` : ''}</p>
+      ${order.address_reference ? `<p style="margin:0;color:var(--gris-texto);">Referencia: ${helpers.escapeHtml(order.address_reference)}</p>` : ''}
+    `
+    : `<p style="color:var(--gris-texto);">${order.delivery_method === 'recogida_tienda' ? 'Retiro en tienda — sin dirección de envío.' : 'Sin dirección guardada (puede que el cliente la haya borrado después de comprar).'}</p>`;
+
+  return `
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cliente</label>
+        <p style="margin:0;">${helpers.escapeHtml(order.customer_name)} ${helpers.escapeHtml(order.customer_last_name)}<br>
+          <span style="color:var(--gris-texto);">${helpers.escapeHtml(order.customer_email)}${order.customer_phone ? ` · ${helpers.escapeHtml(order.customer_phone)}` : ''}</span>
+        </p>
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <p style="margin:0 0 8px;"><span class="status-badge ${statusBadgeClass(order.status)}">${helpers.orderStatusLabel(order.status)}</span></p>
+        ${nextStatusActionsMarkup(order.next_statuses || [])}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>${order.delivery_method === 'recogida_tienda' ? 'Retiro en tienda' : 'Dirección de envío'}</label>
+      ${addressLines}
+    </div>
+
+    <div class="form-group">
+      <label>Productos y servicios</label>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Ítem</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead>
+          <tbody>
+            ${order.items.map((item) => `
+              <tr>
+                <td>
+                  ${helpers.escapeHtml(item.name_snapshot)}
+                  ${item.variant_label_snapshot ? `<br><small style="color:var(--gris-texto);">${helpers.variantSwatchMarkup(item.variant_color_snapshot, item.variant_color_name_snapshot)}${helpers.escapeHtml(item.variant_label_snapshot)}</small>` : ''}
+                  ${item.scheduled_at ? `<br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}
+                </td>
+                <td>${item.quantity}</td>
+                <td>${helpers.formatCurrency(item.unit_price)}</td>
+                <td>${helpers.formatCurrency(item.subtotal)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-row"><span>Subtotal</span><span>${helpers.formatCurrency(order.subtotal)}</span></div>
+      <div class="summary-row"><span>Descuento</span><span>-${helpers.formatCurrency(order.discount_total)}</span></div>
+      <div class="summary-row"><span>Impuestos</span><span>${helpers.formatCurrency(order.tax_total)}</span></div>
+      <div class="summary-row"><span>Envío</span><span>${helpers.formatCurrency(order.shipping_total)}</span></div>
+      <div class="summary-row total"><span>Total</span><span>${helpers.formatCurrency(order.total)}</span></div>
+    </div>
+
+    ${order.notes ? `<div class="form-group"><label>Notas del cliente</label><p style="margin:0;color:var(--gris-texto);">${helpers.escapeHtml(order.notes)}</p></div>` : ''}
+  `;
+}
+
+async function openOrderDetailModal(orderNumber) {
+  const overlay = document.getElementById('order-detail-modal-overlay');
+  const body = document.getElementById('order-detail-body');
+  document.getElementById('order-detail-title').textContent = `Pedido ${orderNumber}`;
+  body.innerHTML = '<p class="loading-state">Cargando…</p>';
+  overlay.classList.add('is-open');
+
+  try {
+    const order = await adminService.order(orderNumber);
+    body.innerHTML = orderDetailMarkup(order);
+
+    body.querySelectorAll('[data-action="advance-status"]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
+        try {
+          await adminService.updateOrderStatus(orderNumber, button.dataset.status, null);
+          helpers.toast(`Pedido ${orderNumber}: ${helpers.orderStatusLabel(button.dataset.status)}.`, 'success');
+          openOrderDetailModal(orderNumber);
+          loadOrders();
+        } catch (error) {
+          helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+        }
+      });
+    });
+  } catch (error) {
+    body.innerHTML = `<p class="error-state">${helpers.escapeHtml(error.message)}</p>`;
+  }
+}
+
+function wireOrderDetailModal() {
+  document.getElementById('order-detail-close').addEventListener('click', () => {
+    document.getElementById('order-detail-modal-overlay').classList.remove('is-open');
+  });
+  document.getElementById('order-detail-modal-overlay').addEventListener('click', (event) => {
+    if (event.target === document.getElementById('order-detail-modal-overlay')) {
+      document.getElementById('order-detail-modal-overlay').classList.remove('is-open');
+    }
+  });
 }
 
 /**
@@ -2026,6 +2147,7 @@ async function initAdminPage() {
   wireSupplierManagement();
   wirePaymentMethodManagement();
   wireCouponManagement();
+  wireOrderDetailModal();
   document.getElementById('orders-status-filter').addEventListener('change', loadOrders);
   document.getElementById('inventory-filter-form').addEventListener('submit', (event) => {
     event.preventDefault();
