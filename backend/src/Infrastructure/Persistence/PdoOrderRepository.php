@@ -169,8 +169,8 @@ final class PdoOrderRepository implements OrderRepositoryInterface
             $orderId = (int) $this->connection->lastInsertId();
 
             $itemStmt = $this->connection->prepare(
-                'INSERT INTO order_items (order_id, product_id, service_id, scheduled_at, variant_ids, name_snapshot, sku_snapshot, variant_label_snapshot, quantity, unit_price, subtotal)
-                 VALUES (:order_id, :product_id, :service_id, :scheduled_at, :variant_ids, :name_snapshot, :sku_snapshot, :variant_label_snapshot, :quantity, :unit_price, :subtotal)'
+                'INSERT INTO order_items (order_id, product_id, service_id, scheduled_at, variant_ids, name_snapshot, sku_snapshot, variant_label_snapshot, variant_color_snapshot, variant_color_name_snapshot, quantity, unit_price, subtotal)
+                 VALUES (:order_id, :product_id, :service_id, :scheduled_at, :variant_ids, :name_snapshot, :sku_snapshot, :variant_label_snapshot, :variant_color_snapshot, :variant_color_name_snapshot, :quantity, :unit_price, :subtotal)'
             );
             $decrementStmt = $this->connection->prepare(
                 'UPDATE products SET stock = stock - :quantity WHERE id = :id'
@@ -203,6 +203,8 @@ final class PdoOrderRepository implements OrderRepositoryInterface
                     'name_snapshot' => $item['name_snapshot'],
                     'sku_snapshot' => $item['sku_snapshot'] ?? null,
                     'variant_label_snapshot' => $item['variant_label_snapshot'] ?? null,
+                    'variant_color_snapshot' => $item['variant_color_snapshot'] ?? null,
+                    'variant_color_name_snapshot' => $item['variant_color_name_snapshot'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'subtotal' => $item['subtotal'],

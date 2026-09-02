@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260901g">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260901n">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260901g"></script>
+<script src="frontend/js/theme-init.js?v=20260901n"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -653,12 +653,35 @@
       </div>
 
       <div class="form-group" id="product-variants-section" hidden>
-        <label>Variantes (talla, color, etc. — cada una con su propio precio/stock si aplica)</label>
-        <div id="product-variants-list"></div>
-        <button class="btn btn-secondary" type="button" id="product-variant-add-btn">+ Agregar variante</button>
-        <button class="btn btn-primary" type="button" id="product-variants-save-btn" style="margin-left:8px;">Guardar variantes</button>
+        <label>Variantes</label>
+
+        <div class="variant-category-box">
+          <label>Tallas</label>
+          <div id="product-variant-tallas-chips" class="variant-chip-list"></div>
+          <div style="display:flex;gap:6px;">
+            <input class="form-control" id="product-variant-talla-input" placeholder="Ej. S, M, L, XL (separadas por coma)" style="flex:1;">
+            <button class="btn btn-secondary" type="button" id="product-variant-talla-add-btn">+ Agregar</button>
+          </div>
+        </div>
+
+        <div class="variant-category-box">
+          <label>Colores</label>
+          <div id="product-variant-colores-chips" class="variant-chip-list"></div>
+          <div style="display:flex;gap:6px;">
+            <input class="form-control" id="product-variant-color-input" placeholder="Ej. Rojo, Verde, Negro (separados por coma)" style="flex:1;">
+            <button class="btn btn-secondary" type="button" id="product-variant-color-add-btn">+ Agregar</button>
+          </div>
+        </div>
+
+        <details style="margin-top:12px;">
+          <summary style="cursor:pointer;color:var(--gris-texto);font-size:0.85rem;">Otras variantes, o ajustar precio/stock/SKU por variante</summary>
+          <div id="product-variants-list" style="margin-top:10px;"></div>
+          <button class="btn btn-secondary" type="button" id="product-variant-add-btn">+ Agregar variante</button>
+        </details>
+
+        <button class="btn btn-primary" type="button" id="product-variants-save-btn" style="margin-top:12px;">Guardar variantes</button>
         <p style="font-size:0.75rem;color:var(--gris-texto);margin:6px 0 0;">
-          Poné el mismo "Tipo" en las que sean de la misma dimensión (ej. "Talla" en "M" y "L", "Color" en "Rojo" y "Negro") — la ficha muestra un selector por cada tipo, así el cliente puede elegir talla Y color por separado. Si dejás "Tipo" vacío en todas, queda una sola lista (como antes). El precio es un ajuste sobre el precio base, se suma el de cada selector (podés dejarlo en 0 si no cambia).
+          "Tallas" y "Colores" son independientes entre sí — agregá o quitá las que hagan falta con el ✕ de cada una, y la ficha del producto muestra un selector por cada una para que el cliente elija talla Y color por separado. El campo "Color" se completa solo con colores comunes en español (escribí "Verde" y ya sale el círculo verde); para cualquier otra dimensión (material, capacidad, etc.) o para ajustar precio/stock por variante, usá "Otras variantes" de abajo.
         </p>
         <div class="form-error" id="product-variants-error"></div>
       </div>
@@ -888,18 +911,18 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260901g"></script>
-<script src="frontend/js/utils/helpers.js?v=20260901g"></script>
-<script src="frontend/js/services/apiService.js?v=20260901g"></script>
-<script src="frontend/js/services/authService.js?v=20260901g"></script>
-<script src="frontend/js/services/catalogService.js?v=20260901g"></script>
-<script src="frontend/js/services/cartService.js?v=20260901g"></script>
-<script src="frontend/js/services/adminService.js?v=20260901g"></script>
-<script src="frontend/js/services/themeService.js?v=20260901g"></script>
-<script src="frontend/js/services/settingsService.js?v=20260901g"></script>
-<script src="frontend/js/services/notificationService.js?v=20260901g"></script>
-<script src="frontend/js/components/layout.js?v=20260901g"></script>
-<script src="frontend/js/components/charts.js?v=20260901g"></script>
-<script src="frontend/js/pages/admin.js?v=20260901g"></script>
+<script src="frontend/js/i18n.js?v=20260901n"></script>
+<script src="frontend/js/utils/helpers.js?v=20260901n"></script>
+<script src="frontend/js/services/apiService.js?v=20260901n"></script>
+<script src="frontend/js/services/authService.js?v=20260901n"></script>
+<script src="frontend/js/services/catalogService.js?v=20260901n"></script>
+<script src="frontend/js/services/cartService.js?v=20260901n"></script>
+<script src="frontend/js/services/adminService.js?v=20260901n"></script>
+<script src="frontend/js/services/themeService.js?v=20260901n"></script>
+<script src="frontend/js/services/settingsService.js?v=20260901n"></script>
+<script src="frontend/js/services/notificationService.js?v=20260901n"></script>
+<script src="frontend/js/components/layout.js?v=20260901n"></script>
+<script src="frontend/js/components/charts.js?v=20260901n"></script>
+<script src="frontend/js/pages/admin.js?v=20260901n"></script>
 </body>
 </html>

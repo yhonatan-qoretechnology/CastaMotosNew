@@ -98,6 +98,17 @@ const helpers = {
     };
   },
 
+  /**
+   * Círculo de color junto al nombre del producto en carrito/checkout/pedido
+   * (reporte: "que en el detalle aparezca el color y title = nombre del
+   * color") — vacío si esa línea no tiene una variante de color elegida
+   * (ver PdoCartRepository::normalizeItem() / variant_color_snapshot).
+   */
+  variantSwatchMarkup(colorHex, colorName) {
+    if (!colorHex) return '';
+    return `<span class="variant-swatch-dot" style="background:${this.escapeHtml(colorHex)};" title="${this.escapeHtml(colorName || colorHex)}"></span>`;
+  },
+
   categoryHref(category) {
     if (category.slug === 'servicios') {
       return `servicios?category=${encodeURIComponent(category.slug)}`;

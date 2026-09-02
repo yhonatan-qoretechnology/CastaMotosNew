@@ -117,6 +117,8 @@ final class CheckoutUseCase
                 // borra la variante en el catálogo (sección 54).
                 'variant_ids' => $item['variant_ids'] ?? null,
                 'variant_label_snapshot' => $item['variant_label'] ?? null,
+                'variant_color_snapshot' => $item['variant_color'] ?? null,
+                'variant_color_name_snapshot' => $item['variant_color_name'] ?? null,
             ];
         }, $items);
 

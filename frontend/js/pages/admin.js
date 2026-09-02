@@ -822,6 +822,7 @@ function resetProductForm() {
   document.getElementById('product-image-input').disabled = false;
   document.getElementById('product-images-count').textContent = '(0/6)';
   document.getElementById('product-variants-list').innerHTML = '';
+  renderVariantChips();
   // A diferencia de fotos (necesitan un id real para subirse), variantes y
   // atributos son texto simple — se pueden escribir ANTES de crear el
   // producto y se guardan junto con él (ver el submit de más abajo), en vez
@@ -902,22 +903,139 @@ async function openProductForm(slug) {
  * wireProductManagement); el botón "Guardar variantes" de acá abajo es para
  * agregar/quitar después, editando un producto que ya existe.
  */
-function renderProductVariantRows(variants) {
-  const list = document.getElementById('product-variants-list');
-  list.innerHTML = (variants || []).map((variant) => `
+/**
+ * Selector de color con paleta nativa del navegador (antes solo pedía
+ * escribir el código hex a mano — "no sabe cómo es el código", reporte del
+ * usuario) — el círculo <input type="color"> abre la paleta del sistema al
+ * hacer clic, y el hex resultante se refleja solo en el campo de texto de al
+ * lado (que sigue editable, por si alguien SÍ conoce el código exacto que
+ * quiere). Se arma una sola vez, tanto para filas ya guardadas como para
+ * "+ Agregar variante".
+ */
+function variantColorFieldMarkup(colorHex) {
+  return `
+    <div class="form-group" style="max-width:170px;">
+      <label>Color (opcional)</label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="color" class="variant-color-picker" value="${colorHex && /^#[0-9a-fA-F]{6}$/.test(colorHex) ? colorHex : '#000000'}" title="Elegí un color" style="width:38px;height:38px;padding:2px;flex-shrink:0;">
+        <input class="form-control variant-color" value="${helpers.escapeHtml(colorHex || '')}" placeholder="#E53935" maxlength="7">
+      </div>
+    </div>
+  `;
+}
+
+// Mismo diccionario que ColorNameResolver en el backend (respaldo final si
+// esto no llega a correr) — acá es solo para la vista previa instantánea: con
+// escribir "Verde" en el Nombre ya se ve el círculo, sin obligar a abrir la
+// paleta. Elegir un color a mano (picker o texto) siempre pisa esto.
+const VARIANT_COLOR_NAMES = {
+  rojo: '#E53935', azul: '#1E88E5', verde: '#43A047', negro: '#212121', blanco: '#FAFAFA',
+  amarillo: '#FDD835', naranja: '#FB8C00', naranjado: '#FB8C00', morado: '#8E24AA', violeta: '#8E24AA',
+  purpura: '#8E24AA', lila: '#AB47BC', rosa: '#EC407A', rosado: '#EC407A', fucsia: '#D81B60',
+  gris: '#757575', plomo: '#757575', cafe: '#6D4C41', marron: '#6D4C41', carmelita: '#6D4C41',
+  celeste: '#29B6F6', turquesa: '#00ACC1', dorado: '#C9A227', oro: '#C9A227', plateado: '#B0B0B0',
+  plata: '#B0B0B0', beige: '#D8C3A5', crema: '#F0E6D2', vino: '#7B1E3A', granate: '#7B1E3A',
+  lima: '#C0CA33', khaki: '#8C8258', caqui: '#8C8258',
+};
+
+function resolveVariantColorName(name) {
+  const normalized = name.trim().toLowerCase().replace(/[áéíóú]/g, (c) => 'aeiou'['áéíóú'.indexOf(c)]);
+  return VARIANT_COLOR_NAMES[normalized] || null;
+}
+
+function wireVariantColorPreview(row) {
+  const picker = row.querySelector('.variant-color-picker');
+  const text = row.querySelector('.variant-color');
+  const name = row.querySelector('.variant-name');
+
+  picker.addEventListener('input', () => {
+    text.value = picker.value;
+  });
+  text.addEventListener('input', () => {
+    const value = text.value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(value)) picker.value = value;
+  });
+  name.addEventListener('input', () => {
+    if (text.value.trim()) return; // ya hay un color elegido a mano, no se pisa
+    const guessed = resolveVariantColorName(name.value);
+    if (guessed) {
+      text.value = guessed;
+      picker.value = guessed;
+    }
+  });
+}
+
+function productVariantRowMarkup(variant = {}) {
+  return `
     <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
       <div class="form-group"><label>Tipo (opcional)</label><input class="form-control variant-type" value="${helpers.escapeHtml(variant.type || '')}" placeholder="Ej. Talla, Color"></div>
       <div class="form-group"><label>Nombre</label><input class="form-control variant-name" value="${helpers.escapeHtml(variant.name || '')}" placeholder="Ej. M, Rojo"></div>
+      ${variantColorFieldMarkup(variant.color_hex)}
       <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku" value="${helpers.escapeHtml(variant.sku || '')}"></div>
       <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="${variant.price_modifier ?? 0}"></div>
       <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="${variant.stock ?? 0}"></div>
       <button class="btn btn-secondary" type="button" data-action="remove-variant-row">✕</button>
     </div>
-  `).join('');
+  `;
+}
 
-  list.querySelectorAll('[data-action="remove-variant-row"]').forEach((btn) => {
-    btn.addEventListener('click', () => btn.closest('[data-variant-row]').remove());
+/** Agrega UNA fila de variante al final de la lista (usada tanto por "+ Agregar variante" como por las chips de Tallas/Colores). */
+function appendProductVariantRow(variant = {}) {
+  const list = document.getElementById('product-variants-list');
+  list.insertAdjacentHTML('beforeend', productVariantRowMarkup(variant));
+  const row = list.lastElementChild;
+  wireVariantColorPreview(row);
+  row.querySelector('[data-action="remove-variant-row"]').addEventListener('click', () => {
+    row.remove();
+    renderVariantChips();
   });
+  renderVariantChips();
+  return row;
+}
+
+/**
+ * "Tallas" y "Colores" son secciones independientes (reporte del usuario)
+ * en vez de un único formulario genérico donde había que acordarse de
+ * escribir "Talla"/"Color" en el campo Tipo cada vez — son una vista rápida
+ * de agregar/quitar sobre las MISMAS filas de #product-variants-list (nunca
+ * un estado aparte: collectProductVariantRows() sigue siendo la única fuente
+ * real), filtradas por Tipo = "talla" / "color" (sin mayúsculas/tildes).
+ */
+function renderVariantChips() {
+  const rows = Array.from(document.querySelectorAll('#product-variants-list [data-variant-row]'));
+
+  const buildChips = (containerId, matchType) => {
+    const container = document.getElementById(containerId);
+    const matches = rows.filter((row) => row.querySelector('.variant-type').value.trim().toLowerCase() === matchType);
+
+    if (matches.length === 0) {
+      container.innerHTML = '<span style="color:var(--gris-texto);font-size:0.82rem;">Ninguna todavía.</span>';
+      return;
+    }
+
+    container.innerHTML = matches.map((row) => {
+      const name = row.querySelector('.variant-name').value.trim() || '(sin nombre)';
+      const color = row.querySelector('.variant-color').value.trim();
+      const dot = matchType === 'color' && color ? `<span class="variant-swatch-dot" style="background:${helpers.escapeHtml(color)};"></span>` : '';
+      return `<span class="variant-chip">${dot}${helpers.escapeHtml(name)} <button type="button" class="variant-chip__remove" aria-label="Quitar ${helpers.escapeHtml(name)}">✕</button></span>`;
+    }).join('');
+
+    container.querySelectorAll('.variant-chip__remove').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        matches[i].remove();
+        renderVariantChips();
+      });
+    });
+  };
+
+  buildChips('product-variant-tallas-chips', 'talla');
+  buildChips('product-variant-colores-chips', 'color');
+}
+
+function renderProductVariantRows(variants) {
+  document.getElementById('product-variants-list').innerHTML = '';
+  (variants || []).forEach((variant) => appendProductVariantRow(variant));
+  renderVariantChips();
 }
 
 function collectProductVariantRows() {
@@ -925,6 +1043,7 @@ function collectProductVariantRows() {
     .map((row) => ({
       type: row.querySelector('.variant-type').value.trim() || undefined,
       name: row.querySelector('.variant-name').value.trim(),
+      color_hex: row.querySelector('.variant-color').value.trim() || undefined,
       sku: row.querySelector('.variant-sku').value.trim() || undefined,
       price_modifier: row.querySelector('.variant-price').value || 0,
       stock: row.querySelector('.variant-stock').value || 0,
@@ -1078,21 +1197,30 @@ function wireProductManagement() {
   });
 
   document.getElementById('product-variant-add-btn').addEventListener('click', () => {
-    const list = document.getElementById('product-variants-list');
-    list.insertAdjacentHTML('beforeend', `
-      <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
-        <div class="form-group"><label>Tipo (opcional)</label><input class="form-control variant-type" placeholder="Ej. Talla, Color"></div>
-        <div class="form-group"><label>Nombre</label><input class="form-control variant-name" placeholder="Ej. M, Rojo"></div>
-        <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku"></div>
-        <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="0"></div>
-        <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="0"></div>
-        <button class="btn btn-secondary" type="button" data-action="remove-variant-row">✕</button>
-      </div>
-    `);
-    list.lastElementChild.querySelector('[data-action="remove-variant-row"]').addEventListener('click', (event) => {
-      event.target.closest('[data-variant-row]').remove();
-    });
+    appendProductVariantRow();
   });
+
+  // "Tallas" y "Colores" son secciones independientes (reporte del usuario):
+  // se escriben varios valores separados por coma de un tirón y cada uno se
+  // agrega como su propia fila/chip, con el Tipo ya fijo — no hace falta
+  // tipear "Talla"/"Color" a mano cada vez.
+  const wireVariantQuickAdd = (inputId, addBtnId, type) => {
+    document.getElementById(addBtnId).addEventListener('click', () => {
+      const input = document.getElementById(inputId);
+      const names = input.value.split(',').map((name) => name.trim()).filter(Boolean);
+
+      if (names.length === 0) {
+        helpers.toast(`Escribí al menos un valor de ${type.toLowerCase()}.`, 'error');
+        return;
+      }
+
+      names.forEach((name) => appendProductVariantRow({ type, name }));
+      input.value = '';
+    });
+  };
+
+  wireVariantQuickAdd('product-variant-talla-input', 'product-variant-talla-add-btn', 'Talla');
+  wireVariantQuickAdd('product-variant-color-input', 'product-variant-color-add-btn', 'Color');
 
   document.getElementById('product-variants-save-btn').addEventListener('click', async () => {
     const productId = document.getElementById('product-id').value;

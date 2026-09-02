@@ -92,11 +92,53 @@ async function loadProductTimeSlots(product, date) {
  * M", "Rojo", "Negro" como si fueran opciones excluyentes entre sí) y el
  * valor elegido nunca se leía en ningún lado — ni cambiaba el precio ni se
  * mandaba al carrito (reporte: "falta el ajuste de color/talla al comprar").
- * Ahora se agrupa por "type" (/admin → Productos → variantes): un <select>
+ * Ahora se agrupa por "type" (/admin → Productos → variantes): un selector
  * por cada dimensión ("Talla", "Color"), para poder elegir una de cada una a
- * la vez. Variantes sin "type" (o si ninguna lo tiene) caen todas juntas bajo
- * un único grupo "Variante" — mismo comportamiento plano que había antes.
+ * la vez, en fila horizontal. "La talla son las letras y el color es el
+ * círculo" (reporte del usuario) — un grupo se pinta como círculos SOLO si
+ * su "Tipo" dice "color" Y todas sus variantes tienen color_hex cargado; el
+ * resto (Talla, o cualquier otra dimensión) se pinta como botones de texto,
+ * nunca como <select> — esto también corrige un bug real: antes un color_hex
+ * suelto (ej. #000000 sin querer) podía hacer que "Talla" se viera como un
+ * círculo negro solo por tener ESE campo cargado, sin importar el Tipo.
  */
+function variantModifierLabel(modifier) {
+  return modifier !== 0 ? ` (${modifier > 0 ? '+' : ''}${helpers.formatCurrency(modifier)})` : '';
+}
+
+function isVariantColorGroup(group) {
+  return /color/i.test(group.label) && group.variants.every((variant) => variant.color_hex);
+}
+
+function variantOptionGroupMarkup(group) {
+  const colorGroup = isVariantColorGroup(group);
+  const first = group.variants[0];
+
+  const buttons = group.variants.map((variant, i) => {
+    const modifier = Number(variant.price_modifier) || 0;
+    const isSelected = i === 0 ? 'is-selected' : '';
+    const dataAttrs = `data-id="${variant.id}" data-price-modifier="${modifier}"`;
+
+    if (colorGroup) {
+      return `<button type="button" class="variant-option variant-option--swatch ${isSelected}" ${dataAttrs}
+                style="background:${variant.color_hex};" title="${helpers.escapeHtml(variant.name)}${variantModifierLabel(modifier)}"
+                aria-label="${helpers.escapeHtml(variant.name)}"></button>`;
+    }
+    return `<button type="button" class="variant-option variant-option--pill ${isSelected}" ${dataAttrs}>
+              ${helpers.escapeHtml(variant.name)}${variantModifierLabel(modifier)}
+            </button>`;
+  }).join('');
+
+  return `
+    <div class="form-group">
+      <label>${helpers.escapeHtml(group.label)}</label>
+      <div class="variant-option-group" data-selected-id="${first.id}" data-selected-modifier="${Number(first.price_modifier) || 0}">
+        ${buttons}
+      </div>
+    </div>
+  `;
+}
+
 function variantOptionsMarkup(product) {
   if (!product.variants || product.variants.length === 0) return '';
 
@@ -111,33 +153,21 @@ function variantOptionsMarkup(product) {
     groups[indexByLabel.get(label)].variants.push(variant);
   });
 
-  return groups.map((group, index) => `
-    <div class="form-group">
-      <label for="variant-select-${index}">${helpers.escapeHtml(group.label)}</label>
-      <select class="form-control variant-select" id="variant-select-${index}">
-        ${group.variants.map((variant) => {
-          const modifier = Number(variant.price_modifier) || 0;
-          const modifierLabel = modifier !== 0 ? ` (${modifier > 0 ? '+' : ''}${helpers.formatCurrency(modifier)})` : '';
-          return `<option value="${variant.id}" data-price-modifier="${modifier}">${helpers.escapeHtml(variant.name)}${modifierLabel}</option>`;
-        }).join('')}
-      </select>
-    </div>
-  `).join('');
+  return groups.map(variantOptionGroupMarkup).join('');
 }
 
 /** Ids de las variantes elegidas ahora mismo (uno por grupo/tipo), o null si el producto no tiene variantes. */
 function selectedVariantIds() {
-  const selects = document.querySelectorAll('.variant-select');
-  if (selects.length === 0) return null;
-  return Array.from(selects).map((select) => Number(select.value));
+  const groups = document.querySelectorAll('.variant-option-group');
+  if (groups.length === 0) return null;
+  return Array.from(groups).map((group) => Number(group.dataset.selectedId));
 }
 
 /** Suma del ajuste de precio de cada variante elegida ahora mismo. */
 function selectedVariantPriceAdjustment() {
-  return Array.from(document.querySelectorAll('.variant-select')).reduce((total, select) => {
-    const option = select.options[select.selectedIndex];
-    return total + (option ? Number(option.dataset.priceModifier) || 0 : 0);
-  }, 0);
+  return Array.from(document.querySelectorAll('.variant-option-group')).reduce(
+    (total, group) => total + (Number(group.dataset.selectedModifier) || 0), 0
+  );
 }
 
 /**
@@ -348,12 +378,22 @@ function wireProductDetailEvents(product) {
   });
 
   // El precio mostrado arriba ahora refleja la variante elegida (antes era
-  // fijo, sin importar qué se seleccionara en el desplegable — el ajuste de
-  // precio nunca se veía reflejado en ningún lado).
-  document.querySelectorAll('.variant-select').forEach((select) => {
-    select.addEventListener('change', () => {
-      const priceEl = document.getElementById('product-current-price');
-      if (priceEl) priceEl.textContent = helpers.formatCurrency(Number(product.price) + selectedVariantPriceAdjustment());
+  // fijo, sin importar qué se seleccionara — el ajuste de precio nunca se
+  // veía reflejado en ningún lado). Ni la talla ni el color son un <select>
+  // nativo (son botones — ver variantOptionGroupMarkup), así que la
+  // selección se lleva a mano en data-selected-id/data-selected-modifier del
+  // grupo — selectedVariantIds() lee eso.
+  document.querySelectorAll('.variant-option-group').forEach((group) => {
+    const options = group.querySelectorAll('.variant-option');
+    options.forEach((option) => {
+      option.addEventListener('click', () => {
+        options.forEach((o) => o.classList.remove('is-selected'));
+        option.classList.add('is-selected');
+        group.dataset.selectedId = option.dataset.id;
+        group.dataset.selectedModifier = option.dataset.priceModifier;
+        const priceEl = document.getElementById('product-current-price');
+        if (priceEl) priceEl.textContent = helpers.formatCurrency(Number(product.price) + selectedVariantPriceAdjustment());
+      });
     });
   });
 

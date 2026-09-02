@@ -31,7 +31,7 @@ async function loadCheckoutSummary() {
     <div class="summary-box">
       ${cart.items.map((item) => `
         <div class="summary-row" data-item-id="${item.id}">
-          <span>${item.quantity}× ${helpers.escapeHtml(item.name)}${item.variant_label ? ` <br><small style="color:var(--gris-texto);">${helpers.escapeHtml(item.variant_label)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
+          <span>${item.quantity}× ${helpers.escapeHtml(item.name)}${item.variant_label ? ` <br><small style="color:var(--gris-texto);">${helpers.variantSwatchMarkup(item.variant_color, item.variant_color_name)}${helpers.escapeHtml(item.variant_label)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
           <span style="display:flex;align-items:center;gap:8px;">
             ${helpers.formatCurrency(item.unit_price * item.quantity)}
             <button type="button" class="icon-btn" data-action="remove-summary-item" data-item-id="${item.id}" aria-label="Quitar" style="padding:2px 6px;font-size:0.75rem;">🗑</button>
@@ -193,9 +193,14 @@ async function loadPaymentMethods() {
     return;
   }
 
-  mount.innerHTML = methods.map((method, index) => `
+  // Antes el primero de la lista quedaba marcado solo (index === 0 ?
+  // 'checked' : '') — el cliente podía confirmar el pedido sin elegir a
+  // propósito el método de pago, pagando por el que quedó preseleccionado
+  // sin darse cuenta. Ahora ninguno viene marcado y wireConfirmOrder() exige
+  // elegir uno, mismo criterio que ya usa la dirección de entrega.
+  mount.innerHTML = methods.map((method) => `
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <input type="radio" name="payment_method" value="${method.id}" ${index === 0 ? 'checked' : ''} style="width:auto;">
+      <input type="radio" name="payment_method" value="${method.id}" style="width:auto;">
       ${helpers.escapeHtml(method.name)} — <span style="color:var(--gris-texto);font-size:0.8rem;">${helpers.escapeHtml(method.description || '')}</span>
     </label>
   `).join('');
@@ -225,6 +230,11 @@ function wireConfirmOrder() {
     }
 
     const paymentMethodId = document.querySelector('input[name="payment_method"]:checked')?.value;
+    if (!paymentMethodId) {
+      errorBox.textContent = 'Selecciona un método de pago.';
+      return;
+    }
+
     const deliveryMethod = document.querySelector('input[name="delivery_method"]:checked')?.value || 'domicilio';
 
     const button = document.getElementById('confirm-order-btn');

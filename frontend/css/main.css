@@ -3386,3 +3386,95 @@ textarea {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Opciones de variante en la ficha del producto (ver variantOptionGroupMarkup
+   en producto.js) — talla/etc. como botones de texto en fila horizontal,
+   color como círculos, ambos con el mismo mecanismo de selección. */
+.variant-option-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.variant-option {
+  cursor: pointer;
+  border: 2px solid var(--gris-borde);
+  background: var(--negro-suave);
+  color: var(--blanco);
+}
+.variant-option:hover {
+  border-color: var(--amarillo);
+}
+.variant-option.is-selected {
+  border-color: var(--amarillo);
+  box-shadow: 0 0 0 2px var(--amarillo);
+}
+.variant-option--swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  padding: 0;
+}
+.variant-option--pill {
+  padding: 8px 14px;
+  border-radius: var(--radio-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.variant-option--pill.is-selected {
+  background: var(--amarillo);
+  color: var(--negro);
+}
+
+/* Círculo chico junto al texto de la variante en carrito/checkout/pedido (ver helpers.variantSwatchMarkup) */
+.variant-swatch-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--gris-borde);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* Secciones independientes "Tallas"/"Colores" en /admin → Productos → variantes */
+.variant-category-box {
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.variant-category-box > label {
+  font-weight: 700;
+  display: block;
+  margin-bottom: 8px;
+}
+.variant-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  min-height: 20px;
+}
+.variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--negro-suave);
+  border: 1px solid var(--gris-borde);
+  border-radius: 999px;
+  padding: 4px 6px 4px 12px;
+  font-size: 0.85rem;
+}
+.variant-chip__remove {
+  background: none;
+  border: none;
+  color: var(--gris-texto);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.variant-chip__remove:hover {
+  color: var(--amarillo);
+}

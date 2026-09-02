@@ -528,8 +528,8 @@ final class PdoProductRepository implements ProductRepositoryInterface
             $delete->execute(['id' => $productId]);
 
             $insert = $this->connection->prepare(
-                'INSERT INTO product_variants (product_id, name, type, sku, price_modifier, stock, attributes)
-                 VALUES (:product_id, :name, :type, :sku, :price_modifier, :stock, :attributes)'
+                'INSERT INTO product_variants (product_id, name, type, color_hex, sku, price_modifier, stock, attributes)
+                 VALUES (:product_id, :name, :type, :color_hex, :sku, :price_modifier, :stock, :attributes)'
             );
 
             foreach ($variants as $variant) {
@@ -539,6 +539,9 @@ final class PdoProductRepository implements ProductRepositoryInterface
                     // Agrupa el selector en la ficha ("Talla", "Color") — vacío
                     // = queda en una sola lista sin agrupar, como antes.
                     'type' => $variant['type'] ?? null,
+                    // Círculo de color en vez de texto (opcional) — ver migración
+                    // 062 y variantOptionsMarkup() en producto.js.
+                    'color_hex' => $variant['color_hex'] ?? null,
                     'sku' => $variant['sku'] ?? null,
                     'price_modifier' => $variant['price_modifier'] ?? 0,
                     'stock' => $variant['stock'] ?? 0,

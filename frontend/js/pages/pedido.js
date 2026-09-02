@@ -70,7 +70,7 @@ async function initOrderConfirmationPage() {
       <div class="summary-box mt-16">
         ${order.items.map((item) => `
           <div class="summary-row">
-            <span>${item.quantity}× ${helpers.escapeHtml(item.name_snapshot)}${item.variant_label_snapshot ? ` <br><small style="color:var(--gris-texto);">${helpers.escapeHtml(item.variant_label_snapshot)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
+            <span>${item.quantity}× ${helpers.escapeHtml(item.name_snapshot)}${item.variant_label_snapshot ? ` <br><small style="color:var(--gris-texto);">${helpers.variantSwatchMarkup(item.variant_color_snapshot, item.variant_color_name_snapshot)}${helpers.escapeHtml(item.variant_label_snapshot)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
             <span>${helpers.formatCurrency(item.subtotal)}</span>
           </div>
         `).join('')}

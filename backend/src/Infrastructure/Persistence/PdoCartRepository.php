@@ -108,23 +108,27 @@ final class PdoCartRepository implements CartRepositoryInterface
         return array_map(fn (array $row) => $this->normalizeItem($row, $variantsById), $rows);
     }
 
-    /** @return array<int, array{name: string, price_modifier: float}> */
+    /** @return array<int, array{name: string, price_modifier: float, color_hex: ?string}> */
     private function resolveVariantsByIds(array $ids): array
     {
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->connection->prepare(
-            "SELECT id, name, price_modifier FROM product_variants WHERE id IN ({$placeholders})"
+            "SELECT id, name, price_modifier, color_hex FROM product_variants WHERE id IN ({$placeholders})"
         );
         $stmt->execute($ids);
 
         $result = [];
         foreach ($stmt->fetchAll() as $row) {
-            $result[(int) $row['id']] = ['name' => $row['name'], 'price_modifier' => (float) $row['price_modifier']];
+            $result[(int) $row['id']] = [
+                'name' => $row['name'],
+                'price_modifier' => (float) $row['price_modifier'],
+                'color_hex' => $row['color_hex'] ?: null,
+            ];
         }
         return $result;
     }
 
-    /** @param array<int, array{name: string, price_modifier: float}> $variantsById */
+    /** @param array<int, array{name: string, price_modifier: float, color_hex: ?string}> $variantsById */
     private function normalizeItem(array $row, array $variantsById = []): array
     {
         $isProduct = $row['product_id'] !== null;
@@ -136,14 +140,23 @@ final class PdoCartRepository implements CartRepositoryInterface
         // Talla/color elegidos para esta línea (solo aplica a productos, ver
         // AddCartItemUseCase::addProduct()) — el ajuste de precio de cada
         // variante se suma al precio base, y el nombre se junta en una sola
-        // etiqueta ("Talla M, Rojo") para mostrar en carrito/checkout.
+        // etiqueta ("Talla M, Rojo") para mostrar en carrito/checkout. Si
+        // alguna de las elegidas tiene círculo de color cargado (/admin), se
+        // expone aparte (variant_color/variant_color_name) para poder pintar
+        // el círculo real en vez de solo el texto.
         $selectedVariantIds = json_decode($row['variant_ids'] ?? '', true) ?: [];
         $variantAdjustment = 0.0;
         $variantNames = [];
+        $variantColor = null;
+        $variantColorName = null;
         foreach ($selectedVariantIds as $variantId) {
             if (isset($variantsById[(int) $variantId])) {
                 $variantAdjustment += $variantsById[(int) $variantId]['price_modifier'];
                 $variantNames[] = $variantsById[(int) $variantId]['name'];
+                if ($variantColor === null && $variantsById[(int) $variantId]['color_hex'] !== null) {
+                    $variantColor = $variantsById[(int) $variantId]['color_hex'];
+                    $variantColorName = $variantsById[(int) $variantId]['name'];
+                }
             }
         }
 
@@ -170,6 +183,8 @@ final class PdoCartRepository implements CartRepositoryInterface
             'scheduled_at' => $row['scheduled_at'] ?? null,
             'variant_ids' => $selectedVariantIds ?: null,
             'variant_label' => $variantNames ? implode(', ', $variantNames) : null,
+            'variant_color' => $variantColor,
+            'variant_color_name' => $variantColorName,
             'requires_scheduling' => $isProduct
                 ? (int) ($row['product_requires_scheduling'] ?? 0) === 1
                 : (int) ($row['service_requires_scheduling'] ?? 1) === 1,
