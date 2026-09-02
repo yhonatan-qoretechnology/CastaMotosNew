@@ -16,9 +16,9 @@
   document.write('<base href="' + (isLocal ? '/proyectos/castamotos/' : '/') + '">');
 })();
 </script>
-<link rel="stylesheet" href="frontend/css/main.css?v=20260901o">
+<link rel="stylesheet" href="frontend/css/main.css?v=20260902c">
 <link rel="icon" type="image/png" href="frontend/assets/img/logo.png">
-<script src="frontend/js/theme-init.js?v=20260901o"></script>
+<script src="frontend/js/theme-init.js?v=20260902c"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -28,8 +28,8 @@
 <main class="container">
   <h1 class="section__title mt-16">Checkout</h1>
   <div class="step-list">
-    <span>1. Carrito</span><span class="is-active">2. Dirección</span><span class="is-active">3. Entrega</span>
-    <span class="is-active">4. Pago</span><span class="is-active">5. Confirmación</span>
+    <span class="is-active">1. Dirección</span><span class="is-active">2. Entrega</span>
+    <span class="is-active">3. Pago</span><span class="is-active">4. Confirmación</span>
   </div>
 
   <div id="checkout-mount">
@@ -75,8 +75,7 @@
       </div>
 
       <div>
-        <h2 class="section__title" style="font-size:1.1rem;">Resumen</h2>
-        <p style="margin:-8px 0 12px;"><a href="carrito" style="color:var(--amarillo);font-size:0.82rem;">✎ Editar carrito (cambiar cantidades o quitar productos)</a></p>
+        <h2 class="section__title" style="font-size:1.1rem;">Tu pedido</h2>
         <div id="checkout-summary"></div>
         <div class="form-error mt-16" id="checkout-error"></div>
         <button class="btn btn-primary btn-block mt-16" id="confirm-order-btn">Confirmar pedido</button>
@@ -87,16 +86,16 @@
 
 <div id="app-footer"></div>
 
-<script src="frontend/js/i18n.js?v=20260901o"></script>
-<script src="frontend/js/utils/helpers.js?v=20260901o"></script>
-<script src="frontend/js/services/apiService.js?v=20260901o"></script>
-<script src="frontend/js/services/authService.js?v=20260901o"></script>
-<script src="frontend/js/services/catalogService.js?v=20260901o"></script>
-<script src="frontend/js/services/cartService.js?v=20260901o"></script>
-<script src="frontend/js/services/themeService.js?v=20260901o"></script>
-<script src="frontend/js/services/settingsService.js?v=20260901o"></script>
-<script src="frontend/js/services/notificationService.js?v=20260901o"></script>
-<script src="frontend/js/components/layout.js?v=20260901o"></script>
-<script src="frontend/js/pages/checkout.js?v=20260901o"></script>
+<script src="frontend/js/i18n.js?v=20260902c"></script>
+<script src="frontend/js/utils/helpers.js?v=20260902c"></script>
+<script src="frontend/js/services/apiService.js?v=20260902c"></script>
+<script src="frontend/js/services/authService.js?v=20260902c"></script>
+<script src="frontend/js/services/catalogService.js?v=20260902c"></script>
+<script src="frontend/js/services/cartService.js?v=20260902c"></script>
+<script src="frontend/js/services/themeService.js?v=20260902c"></script>
+<script src="frontend/js/services/settingsService.js?v=20260902c"></script>
+<script src="frontend/js/services/notificationService.js?v=20260902c"></script>
+<script src="frontend/js/components/layout.js?v=20260902c"></script>
+<script src="frontend/js/pages/checkout.js?v=20260902c"></script>
 </body>
 </html>

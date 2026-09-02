@@ -27,14 +27,29 @@ async function loadCheckoutSummary() {
     return null;
   }
 
+  // Antes había que ir a /carrito aparte para cambiar cantidades ("Carrito"
+  // y "Checkout" son básicamente lo mismo", reporte del usuario) — ahora el
+  // resumen ya trae los mismos controles +/- que el carrito, así que esta
+  // página alcanza sola para revisar Y ajustar el pedido antes de confirmar.
   mount.innerHTML = `
     <div class="summary-box">
       ${cart.items.map((item) => `
-        <div class="summary-row" data-item-id="${item.id}">
-          <span>${item.quantity}× ${helpers.escapeHtml(item.name)}${item.variant_label ? ` <br><small style="color:var(--gris-texto);">${helpers.variantSwatchMarkup(item.variant_color, item.variant_color_name)}${helpers.escapeHtml(item.variant_label)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
-          <span style="display:flex;align-items:center;gap:8px;">
-            ${helpers.formatCurrency(item.unit_price * item.quantity)}
-            <button type="button" class="icon-btn" data-action="remove-summary-item" data-item-id="${item.id}" aria-label="Quitar" style="padding:2px 6px;font-size:0.75rem;">🗑</button>
+        <div class="summary-row summary-row--item" data-item-id="${item.id}">
+          <span>
+            ${helpers.escapeHtml(item.name)}
+            ${item.variant_label ? `<br><small style="color:var(--gris-texto);">${helpers.variantSwatchMarkup(item.variant_color, item.variant_color_name)}${helpers.escapeHtml(item.variant_label)}</small>` : ''}
+            ${item.scheduled_at ? `<br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}
+          </span>
+          <span style="display:flex;align-items:center;gap:10px;">
+            ${item.type === 'service'
+              ? '<span style="font-size:0.78rem;color:var(--gris-texto);">1 reserva</span>'
+              : `<div class="cart-line__qty">
+                  <button type="button" data-action="decrease" aria-label="Disminuir">−</button>
+                  <input type="number" min="1" value="${item.quantity}" data-role="quantity">
+                  <button type="button" data-action="increase" aria-label="Aumentar">+</button>
+                </div>`}
+            <strong>${helpers.formatCurrency(item.unit_price * item.quantity)}</strong>
+            <button type="button" class="icon-btn" data-action="remove-summary-item" aria-label="Quitar" style="padding:2px 6px;font-size:0.75rem;">🗑</button>
           </span>
         </div>
       `).join('')}
@@ -47,19 +62,55 @@ async function loadCheckoutSummary() {
     </div>
   `;
 
-  mount.querySelectorAll('[data-action="remove-summary-item"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await cartService.removeItem(btn.dataset.itemId);
-        helpers.toast('Producto eliminado del pedido.', 'success');
-        window.location.reload(); // recalcula todo (direcciones/pago no cambian, solo el resumen)
-      } catch (error) {
-        helpers.toast(error.message, 'error');
-      }
-    });
+  mount.querySelectorAll('.summary-row--item').forEach((row) => {
+    const itemId = row.dataset.itemId;
+    const input = row.querySelector('[data-role="quantity"]');
+
+    if (input) {
+      row.querySelector('[data-action="increase"]').addEventListener('click', () => updateCheckoutItemQuantity(itemId, Number(input.value) + 1));
+      row.querySelector('[data-action="decrease"]').addEventListener('click', () => {
+        const next = Number(input.value) - 1;
+        if (next >= 1) updateCheckoutItemQuantity(itemId, next);
+      });
+      input.addEventListener('change', () => {
+        const next = Number(input.value);
+        if (next >= 1) updateCheckoutItemQuantity(itemId, next);
+      });
+    }
+
+    row.querySelector('[data-action="remove-summary-item"]').addEventListener('click', () => removeCheckoutItem(itemId));
   });
 
   return cart;
+}
+
+/** Vuelve a pintar el resumen (y su lógica de envío) sin recargar toda la página — direcciones/pago/notas ya cargados quedan como estaban. */
+async function refreshCheckoutSummary() {
+  const cart = await loadCheckoutSummary();
+  if (cart) wireDeliveryMethod(cart);
+  return cart;
+}
+
+async function updateCheckoutItemQuantity(itemId, quantity) {
+  try {
+    await cartService.updateItem(itemId, quantity);
+    refreshCartBadge();
+    await refreshCheckoutSummary();
+  } catch (error) {
+    helpers.toast(helpers.flattenErrors(error.fields) || error.message, 'error');
+    await refreshCheckoutSummary();
+  }
+}
+
+async function removeCheckoutItem(itemId) {
+  try {
+    await cartService.removeItem(itemId);
+    helpers.toast('Producto eliminado del pedido.', 'success');
+    refreshCartBadge();
+    await refreshCheckoutSummary();
+  } catch (error) {
+    helpers.toast(error.message, 'error');
+  }
 }
 
 async function loadAddresses() {

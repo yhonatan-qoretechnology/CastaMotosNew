@@ -64,7 +64,13 @@ function renderHeaderShell() {
             </div>
             ` : ''}
             ${user ? `<a class="icon-btn" href="favoritos" aria-label="${i18nService.t('nav.favorites')}">♥</a>` : ''}
-            <a class="icon-btn" href="carrito" aria-label="${i18nService.t('nav.cart')}">
+            <!-- Con sesión, directo a checkout — el resumen ahí ya trae los mismos
+                 controles de cantidad/eliminar que /carrito (reporte: "carrito y
+                 checkout son prácticamente lo mismo"), así que no hace falta pasar
+                 primero por una pantalla aparte. Sin sesión, a /carrito: checkout
+                 exige estar logueado (dirección/pago), así que mandar ahí a un
+                 invitado solo agrega una vuelta extra (checkout lo rebota igual). -->
+            <a class="icon-btn" href="${user ? 'checkout' : 'carrito'}" aria-label="${i18nService.t('nav.cart')}">
               🛒<span class="badge-count" id="cart-badge" hidden>0</span>
             </a>
             ${isAdminUser(user) ? `<a class="icon-btn" href="admin">${i18nService.t('nav.admin')}</a>` : ''}
@@ -606,7 +612,7 @@ function renderFooter() {
             <h3>${i18nService.t('footer.myAccount')}</h3>
             <a href="perfil">${i18nService.t('footer.myProfile')}</a>
             <a href="pedidos">${i18nService.t('footer.myOrders')}</a>
-            <a href="carrito">${i18nService.t('nav.cart')}</a>
+            <a href="${authService.isAuthenticated() ? 'checkout' : 'carrito'}">${i18nService.t('nav.cart')}</a>
             <a href="favoritos">${i18nService.t('footer.myFavorites')}</a>
           </div>
         </div>

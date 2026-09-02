@@ -29,8 +29,13 @@ interface CartRepositoryInterface
     /**
      * Si ya existe un ítem para ese producto/servicio en el carrito, sería
      * mejor sumarle cantidad que duplicar fila; el UseCase decide con esto.
+     * Para un producto con variantes, "ya existe" exige además la MISMA
+     * combinación exacta de variantes elegidas (talla/color/etc.) — una
+     * combinación distinta es una línea aparte, no se mezclan cantidades.
+     *
+     * @param int[]|null $variantIds
      */
-    public function findExistingItem(int $cartId, ?int $productId, ?int $serviceId): ?array;
+    public function findExistingItem(int $cartId, ?int $productId, ?int $serviceId, ?array $variantIds = null): ?array;
 
     /** @param int[]|null $variantIds ids de product_variants elegidos para esta línea (talla/color/etc.) */
     public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null, ?array $variantIds = null): int;

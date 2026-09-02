@@ -1908,16 +1908,52 @@ textarea {
   }
 }
 
-/* Descripción/atributos del producto (antes vivían adentro de la columna
-   derecha de .detail-grid, apretados a la mitad del ancho junto con la caja
-   de compra, vendedor, pagos y compartir — se sacan afuera del grid acá
-   para que el texto largo tenga todo el ancho de la página, como cualquier
-   otra sección de la ficha). */
-.product-description-section {
+/* Descripción/atributos/opiniones del producto, en pestañas (antes los tres
+   iban uno debajo del otro, siempre visibles a la vez — obligaba a un scroll
+   larguísimo para llegar a ver todo). Se sacan afuera de .detail-grid para
+   que el texto largo tenga todo el ancho de la página, como cualquier otra
+   sección de la ficha. */
+.product-tabs {
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid var(--gris-borde);
   max-width: 900px;
+}
+.product-tabs__nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--gris-borde);
+  margin-bottom: 20px;
+}
+.product-tabs__btn {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--gris-texto);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.product-tabs__btn:hover {
+  color: var(--blanco);
+}
+.product-tabs__btn.is-active {
+  color: var(--amarillo);
+  border-bottom-color: var(--amarillo);
+}
+/* Fundido suave al cambiar de pestaña (ver wireProductDetailEvents en
+   producto.js): "hidden" saca el panel del flujo sin animación posible, así
+   que el fade real lo hace esta transición sobre opacity/transform una vez
+   que el panel ya está visible en el DOM. */
+.product-tabs__panel {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.product-tabs__panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Caja de compra (columna derecha del detalle, como en un marketplace):

@@ -345,24 +345,28 @@ function renderProductDetail(product) {
       </div>
     </div>
 
-    <div class="product-description-section">
-      ${attributesMarkup(product)}
-      ${product.description ? `
-        <div class="mt-16">
-          <h2 class="specs-title">Descripción</h2>
-          <div style="color:var(--gris-texto);white-space:pre-line;">${helpers.escapeHtml(product.description)}</div>
-        </div>
-      ` : ''}
+    <div class="product-tabs mt-16">
+      <div class="product-tabs__nav" role="tablist">
+        <button type="button" class="product-tabs__btn is-active" data-tab="description" role="tab" aria-selected="true">Descripción</button>
+        <button type="button" class="product-tabs__btn" data-tab="reviews" role="tab" aria-selected="false">Opiniones${product.rating_count ? ` (${product.rating_count})` : ''}</button>
+      </div>
+      <div class="product-tabs__panel is-visible" data-tab-panel="description" role="tabpanel">
+        ${attributesMarkup(product)}
+        ${product.description ? `
+          <div class="mt-16">
+            <h2 class="specs-title">Descripción</h2>
+            <div style="color:var(--gris-texto);white-space:pre-line;">${helpers.escapeHtml(product.description)}</div>
+          </div>
+        ` : ''}
+      </div>
+      <div class="product-tabs__panel" data-tab-panel="reviews" role="tabpanel" hidden>
+        <div id="reviews-mount"><p class="loading-state">Cargando opiniones…</p></div>
+      </div>
     </div>
 
     <div class="section">
       <h2 class="section__title">Productos relacionados</h2>
       <div class="carousel" id="related-products"></div>
-    </div>
-
-    <div class="section">
-      <h2 class="section__title">Opiniones del producto</h2>
-      <div id="reviews-mount"><p class="loading-state">Cargando opiniones…</p></div>
     </div>
   `;
 
@@ -375,6 +379,35 @@ function wireProductDetailEvents(product) {
   document.getElementById('toggle-specs-btn')?.addEventListener('click', (event) => {
     document.getElementById('specs-full-table').hidden = false;
     event.target.remove();
+  });
+
+  // Antes "Descripción" + atributos + "Opiniones" iban uno debajo del otro,
+  // los tres siempre visibles a la vez — obligaba a un scroll larguísimo
+  // para ver todo (reporte del usuario). Ahora son pestañas: solo el panel
+  // activo ocupa espacio, con un fundido suave al cambiar en vez de un salto
+  // brusco (quitar "hidden" y recién en el siguiente frame sumar la clase
+  // que anima opacity/transform — así el navegador sí alcanza a animar la
+  // transición en vez de saltar directo al estado final).
+  document.querySelectorAll('.product-tabs__btn').forEach((tabButton) => {
+    tabButton.addEventListener('click', () => {
+      const target = tabButton.dataset.tab;
+
+      document.querySelectorAll('.product-tabs__btn').forEach((btn) => {
+        const isActive = btn === tabButton;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+      });
+
+      document.querySelectorAll('.product-tabs__panel').forEach((panel) => {
+        if (panel.dataset.tabPanel === target) {
+          panel.hidden = false;
+          requestAnimationFrame(() => panel.classList.add('is-visible'));
+        } else if (panel.classList.contains('is-visible')) {
+          panel.classList.remove('is-visible');
+          setTimeout(() => { panel.hidden = true; }, 200);
+        }
+      });
+    });
   });
 
   // El precio mostrado arriba ahora refleja la variante elegida (antes era

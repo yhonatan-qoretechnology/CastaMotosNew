@@ -72,21 +72,12 @@ final class AddCartItemUseCase
             return;
         }
 
-        // Una variante elegida (talla, color) nunca se suma a una fila
-        // existente — dos combinaciones distintas ("Talla M" y "Talla L") son
-        // líneas separadas del carrito, igual que un producto agendado.
-        if ($variantIds !== null) {
-            if ($quantity > (int) $product['stock']) {
-                throw new ValidationException('No fue posible agregar el producto.', [
-                    'quantity' => ['La cantidad solicitada supera el stock disponible.'],
-                ]);
-            }
-
-            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice, null, $variantIds);
-            return;
-        }
-
-        $existing = $this->carts->findExistingItem($cartId, $productId, null);
+        // "Ya está en el carrito" exige el MISMO producto Y la MISMA
+        // combinación de variantes — agregar "Talla M" dos veces suma
+        // cantidad en la misma fila (como cualquier producto sin variantes);
+        // agregar "Talla M" y después "Talla L" son líneas distintas (ver
+        // findExistingItem, que compara el conjunto de ids elegidos).
+        $existing = $this->carts->findExistingItem($cartId, $productId, null, $variantIds);
         $newQuantity = $quantity + ($existing !== null ? (int) $existing['quantity'] : 0);
 
         if ($newQuantity > (int) $product['stock']) {
@@ -98,7 +89,7 @@ final class AddCartItemUseCase
         if ($existing !== null) {
             $this->carts->updateItemQuantity((int) $existing['id'], $newQuantity);
         } else {
-            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice);
+            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice, null, $variantIds);
         }
     }
 

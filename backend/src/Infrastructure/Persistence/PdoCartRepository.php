@@ -212,23 +212,53 @@ final class PdoCartRepository implements CartRepositoryInterface
         return (bool) $stmt->fetchColumn();
     }
 
-    public function findExistingItem(int $cartId, ?int $productId, ?int $serviceId): ?array
+    /**
+     * Para un producto con variantes, "ya existe" significa MISMO producto Y
+     * MISMA combinación de variantes elegidas — agregar "S, Verde" dos veces
+     * debe sumar cantidad en la misma fila (como cualquier producto sin
+     * variantes), no crear una fila duplicada; agregar "S, Verde" y después
+     * "M, Rojo" sí son líneas distintas. Como puede haber varias filas del
+     * mismo product_id con distintas variantes, se filtra en PHP comparando
+     * el conjunto de ids (sin importar el orden) en vez de en el SQL — JSON
+     * no se compara fácil como igualdad de conjunto en una consulta.
+     */
+    public function findExistingItem(int $cartId, ?int $productId, ?int $serviceId, ?array $variantIds = null): ?array
     {
         if ($productId !== null) {
             $stmt = $this->connection->prepare(
                 'SELECT * FROM cart_items WHERE cart_id = :cart_id AND product_id = :product_id'
             );
             $stmt->execute(['cart_id' => $cartId, 'product_id' => $productId]);
-        } else {
-            $stmt = $this->connection->prepare(
-                'SELECT * FROM cart_items WHERE cart_id = :cart_id AND service_id = :service_id'
-            );
-            $stmt->execute(['cart_id' => $cartId, 'service_id' => $serviceId]);
+
+            $target = $this->normalizedVariantKey($variantIds);
+            foreach ($stmt->fetchAll() as $row) {
+                $rowVariantIds = json_decode($row['variant_ids'] ?? '', true) ?: null;
+                if ($this->normalizedVariantKey($rowVariantIds) === $target) {
+                    return $row;
+                }
+            }
+            return null;
         }
+
+        $stmt = $this->connection->prepare(
+            'SELECT * FROM cart_items WHERE cart_id = :cart_id AND service_id = :service_id'
+        );
+        $stmt->execute(['cart_id' => $cartId, 'service_id' => $serviceId]);
 
         $row = $stmt->fetch();
 
         return $row ?: null;
+    }
+
+    /** Clave comparable para "mismo conjunto de variantes elegidas", sin importar el orden. NULL/[] siempre dan la misma clave ("sin variantes"). */
+    private function normalizedVariantKey(?array $variantIds): string
+    {
+        if (empty($variantIds)) {
+            return '';
+        }
+        $sorted = array_unique(array_map('intval', $variantIds));
+        sort($sorted);
+        return implode(',', $sorted);
     }
 
     public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null, ?array $variantIds = null): int
@@ -306,16 +336,18 @@ final class PdoCartRepository implements CartRepositoryInterface
             foreach ($guestItems->fetchAll() as $item) {
                 $variantIds = json_decode($item['variant_ids'] ?? '', true) ?: null;
                 // Mismo criterio que AddCartItemUseCase: una reserva (scheduled_at)
-                // o una variante elegida (talla/color) nunca se suma a una fila
-                // existente — cada una queda como su propia línea, aunque sea el
-                // mismo producto/servicio. Sin esto, fusionar el carrito de
-                // invitado con el de la cuenta podía mezclar dos elecciones
-                // distintas en una sola fila y perder una de las dos en silencio.
-                $existing = ($item['scheduled_at'] === null && $variantIds === null)
+                // nunca se suma a una fila existente (cada una es su propia línea).
+                // Una variante SÍ se suma, pero solo contra una fila con la MISMA
+                // combinación exacta — findExistingItem() ya hace esa comparación.
+                // Sin esto, fusionar el carrito de invitado con el de la cuenta
+                // podía mezclar dos elecciones distintas en una sola fila y perder
+                // una de las dos en silencio.
+                $existing = $item['scheduled_at'] === null
                     ? $this->findExistingItem(
                         (int) $userCart['id'],
                         $item['product_id'] !== null ? (int) $item['product_id'] : null,
-                        $item['service_id'] !== null ? (int) $item['service_id'] : null
+                        $item['service_id'] !== null ? (int) $item['service_id'] : null,
+                        $variantIds
                     )
                     : null;
 
