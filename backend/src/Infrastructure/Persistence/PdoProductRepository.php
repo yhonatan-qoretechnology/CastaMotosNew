@@ -528,14 +528,17 @@ final class PdoProductRepository implements ProductRepositoryInterface
             $delete->execute(['id' => $productId]);
 
             $insert = $this->connection->prepare(
-                'INSERT INTO product_variants (product_id, name, sku, price_modifier, stock, attributes)
-                 VALUES (:product_id, :name, :sku, :price_modifier, :stock, :attributes)'
+                'INSERT INTO product_variants (product_id, name, type, sku, price_modifier, stock, attributes)
+                 VALUES (:product_id, :name, :type, :sku, :price_modifier, :stock, :attributes)'
             );
 
             foreach ($variants as $variant) {
                 $insert->execute([
                     'product_id' => $productId,
                     'name' => $variant['name'],
+                    // Agrupa el selector en la ficha ("Talla", "Color") — vacío
+                    // = queda en una sola lista sin agrupar, como antes.
+                    'type' => $variant['type'] ?? null,
                     'sku' => $variant['sku'] ?? null,
                     'price_modifier' => $variant['price_modifier'] ?? 0,
                     'stock' => $variant['stock'] ?? 0,

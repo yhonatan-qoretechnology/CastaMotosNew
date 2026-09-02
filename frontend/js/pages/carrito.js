@@ -125,6 +125,7 @@ function cartLineMarkup(item) {
       <div class="cart-line__image">${image ? `<img src="${image}" alt="">` : ''}</div>
       <div class="cart-line__info">
         <div>${helpers.escapeHtml(item.name)}</div>
+        ${item.variant_label ? `<div style="font-size:0.78rem;color:var(--gris-texto);">${helpers.escapeHtml(item.variant_label)}</div>` : ''}
         ${item.scheduled_at ? `<div style="font-size:0.78rem;color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</div>` : ''}
         <div style="color:var(--amarillo);font-weight:700;">${helpers.formatCurrency(item.unit_price)}</div>
         ${warning}

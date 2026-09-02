@@ -1,6 +1,17 @@
 Options -Indexes
 DirectoryIndex index.php
 
+# backend/.htaccess bloquea todo backend/ por defecto (sección seguridad) —
+# esta es la única carpeta que necesita quedar accesible de nuevo, porque acá
+# es donde realmente aterriza la reescritura del .htaccess de la raíz del sitio.
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Allow from all
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     # Todo lo que llegue directo a esta carpeta (uso interno/depuración) pasa por index.php.

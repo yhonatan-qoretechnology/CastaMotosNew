@@ -54,10 +54,19 @@ final class CartController
 
         [$productId, $serviceId] = $this->assertExactlyOneReference($data);
 
+        // Talla/color elegidos (solo aplica a productos) — sin regla propia
+        // en el Validator de arriba (igual que "scheduled_at": el Validator
+        // igual devuelve todo el input sin filtrar, ver Validator::validate()),
+        // se sanea acá a una lista de enteros antes de que AddCartItemUseCase
+        // vuelva a validar que cada uno sea de verdad una variante del producto.
+        $variantIds = is_array($data['variant_ids'] ?? null)
+            ? array_values(array_filter(array_map('intval', $data['variant_ids']), static fn (int $id) => $id > 0))
+            : null;
+
         $cart = $this->resolveCart($request);
 
         (new AddCartItemUseCase($this->carts, $this->products, $this->services))
-            ->handle((int) $cart['id'], $productId, $serviceId, (int) $data['quantity'], $data['scheduled_at'] ?? null);
+            ->handle((int) $cart['id'], $productId, $serviceId, (int) $data['quantity'], $data['scheduled_at'] ?? null, $variantIds ?: null);
 
         Response::success($this->buildCartResponse($cart), 'Producto agregado al carrito.', 201);
     }

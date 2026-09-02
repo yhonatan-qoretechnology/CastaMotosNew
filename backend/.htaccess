@@ -1,0 +1,21 @@
+﻿# Nada bajo backend/ debería ser pedido por HTTP directo — el único punto de
+# entrada real es backend/public/index.php, al que .htaccess (raíz del sitio)
+# llega mediante una reescritura interna de Apache, no un link público. Sin
+# esto, cualquiera puede pedir backend/storage/logs/*.log (mensajes de error
+# con detalles internos), backend/storage/mails/*.html (copias de correos
+# salientes, incluido el token de "recuperar contraseña" si el envío por SMTP
+# alguna vez cae al log de correo), backend/composer.json/.lock (huella de
+# versiones de librerías para buscar CVEs) o cualquier .php de src/ — nada de
+# esto se ejecuta al pedirlo así (Apache lo serviría como texto plano, no lo
+# correría), pero igual expone información que no debería ser pública.
+#
+# backend/public/.htaccess reabre el acceso solo para esa carpeta (una regla
+# más específica en un subdirectorio gana sobre esta), que es por donde SÍ
+# tiene que poder entrar cualquier petición real.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

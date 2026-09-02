@@ -47,8 +47,8 @@ final class PdoUserRepository implements UserRepositoryInterface
     public function create(array $data): int
     {
         $stmt = $this->connection->prepare(
-            'INSERT INTO users (name, last_name, email, phone, password, status, terms_accepted_at, terms_accepted_ip)
-             VALUES (:name, :last_name, :email, :phone, :password, :status, :terms_accepted_at, :terms_accepted_ip)'
+            'INSERT INTO users (name, last_name, email, phone, password, password_changed_at, status, terms_accepted_at, terms_accepted_ip)
+             VALUES (:name, :last_name, :email, :phone, :password, :password_changed_at, :status, :terms_accepted_at, :terms_accepted_ip)'
         );
         $stmt->execute([
             'name' => $data['name'],
@@ -56,6 +56,11 @@ final class PdoUserRepository implements UserRepositoryInterface
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'password' => $data['password'],
+            // Con el reloj de PHP (no NOW() de SQL): AuthMiddleware compara esto
+            // contra el "iat" del JWT, que también sale del reloj de PHP — si se
+            // mezclan los dos relojes y el servidor de base de datos está en otra
+            // zona horaria que PHP, la comparación queda desalineada en silencio.
+            'password_changed_at' => date('Y-m-d H:i:s'),
             'status' => 'active',
             // Evidencia de que aceptó términos y condiciones al registrarse
             // (sección registro): fecha/hora + IP, no solo un booleano.
@@ -95,13 +100,18 @@ final class PdoUserRepository implements UserRepositoryInterface
 
     public function updatePassword(int $userId, string $passwordHash): void
     {
-        // Cambiar la contraseña también limpia el estado de bloqueo por fuerza bruta.
+        // Cambiar la contraseña también limpia el estado de bloqueo por fuerza
+        // bruta, y actualiza password_changed_at para que AuthMiddleware
+        // invalide cualquier JWT emitido antes de este momento (sección
+        // seguridad) — sin esto, un token robado seguía sirviendo hasta su
+        // expiración natural aunque la víctima ya hubiera cambiado la clave.
         $stmt = $this->connection->prepare(
             'UPDATE users
-             SET password = :password, failed_login_attempts = 0, locked_until = NULL
+             SET password = :password, failed_login_attempts = 0, locked_until = NULL, password_changed_at = :password_changed_at
              WHERE id = :id'
         );
-        $stmt->execute(['password' => $passwordHash, 'id' => $userId]);
+        // Reloj de PHP, no NOW() de SQL — ver el comentario en create() de más arriba.
+        $stmt->execute(['password' => $passwordHash, 'password_changed_at' => date('Y-m-d H:i:s'), 'id' => $userId]);
     }
 
     public function updateAvatar(int $userId, string $avatarPath): void
@@ -285,6 +295,7 @@ final class PdoUserRepository implements UserRepositoryInterface
             emailVerifiedAt: $row['email_verified_at'],
             failedLoginAttempts: (int) $row['failed_login_attempts'],
             lockedUntil: $row['locked_until'],
+            passwordChangedAt: $row['password_changed_at'] ?? null,
             roles: $this->rolesForUser((int) $row['id']),
         );
     }

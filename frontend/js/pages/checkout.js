@@ -31,7 +31,7 @@ async function loadCheckoutSummary() {
     <div class="summary-box">
       ${cart.items.map((item) => `
         <div class="summary-row" data-item-id="${item.id}">
-          <span>${item.quantity}× ${helpers.escapeHtml(item.name)}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
+          <span>${item.quantity}× ${helpers.escapeHtml(item.name)}${item.variant_label ? ` <br><small style="color:var(--gris-texto);">${helpers.escapeHtml(item.variant_label)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
           <span style="display:flex;align-items:center;gap:8px;">
             ${helpers.formatCurrency(item.unit_price * item.quantity)}
             <button type="button" class="icon-btn" data-action="remove-summary-item" data-item-id="${item.id}" aria-label="Quitar" style="padding:2px 6px;font-size:0.75rem;">🗑</button>

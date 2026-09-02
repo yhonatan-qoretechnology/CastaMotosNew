@@ -43,7 +43,7 @@ final class JwtService
     }
 
     /**
-     * @return array{sub:int, roles:string[]}
+     * @return array{sub:int, roles:string[], iat:int}
      */
     public static function verify(string $token): array
     {
@@ -60,6 +60,9 @@ final class JwtService
         return [
             'sub' => (int) $decoded->sub,
             'roles' => (array) $decoded->roles,
+            // Necesario para que AuthMiddleware pueda invalidar tokens
+            // emitidos antes de un cambio de contraseña (sección seguridad).
+            'iat' => (int) $decoded->iat,
         ];
     }
 }

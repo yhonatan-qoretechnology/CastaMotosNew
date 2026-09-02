@@ -906,7 +906,8 @@ function renderProductVariantRows(variants) {
   const list = document.getElementById('product-variants-list');
   list.innerHTML = (variants || []).map((variant) => `
     <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
-      <div class="form-group"><label>Nombre</label><input class="form-control variant-name" value="${helpers.escapeHtml(variant.name || '')}" placeholder="Ej. Talla M"></div>
+      <div class="form-group"><label>Tipo (opcional)</label><input class="form-control variant-type" value="${helpers.escapeHtml(variant.type || '')}" placeholder="Ej. Talla, Color"></div>
+      <div class="form-group"><label>Nombre</label><input class="form-control variant-name" value="${helpers.escapeHtml(variant.name || '')}" placeholder="Ej. M, Rojo"></div>
       <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku" value="${helpers.escapeHtml(variant.sku || '')}"></div>
       <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="${variant.price_modifier ?? 0}"></div>
       <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="${variant.stock ?? 0}"></div>
@@ -922,6 +923,7 @@ function renderProductVariantRows(variants) {
 function collectProductVariantRows() {
   return Array.from(document.querySelectorAll('#product-variants-list [data-variant-row]'))
     .map((row) => ({
+      type: row.querySelector('.variant-type').value.trim() || undefined,
       name: row.querySelector('.variant-name').value.trim(),
       sku: row.querySelector('.variant-sku').value.trim() || undefined,
       price_modifier: row.querySelector('.variant-price').value || 0,
@@ -1079,7 +1081,8 @@ function wireProductManagement() {
     const list = document.getElementById('product-variants-list');
     list.insertAdjacentHTML('beforeend', `
       <div class="form-row" data-variant-row style="align-items:flex-end;margin-bottom:8px;">
-        <div class="form-group"><label>Nombre</label><input class="form-control variant-name" placeholder="Ej. Talla M"></div>
+        <div class="form-group"><label>Tipo (opcional)</label><input class="form-control variant-type" placeholder="Ej. Talla, Color"></div>
+        <div class="form-group"><label>Nombre</label><input class="form-control variant-name" placeholder="Ej. M, Rojo"></div>
         <div class="form-group"><label>SKU (opcional)</label><input class="form-control variant-sku"></div>
         <div class="form-group"><label>Ajuste de precio</label><input class="form-control variant-price" type="number" step="1" value="0"></div>
         <div class="form-group"><label>Stock</label><input class="form-control variant-stock" type="number" min="0" step="1" value="0"></div>

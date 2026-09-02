@@ -12,7 +12,7 @@ function orderWhatsappLink(order, whatsappNumber) {
   if (!whatsappNumber) return null;
 
   const itemsText = order.items.map((item) =>
-    `- ${item.quantity}× ${item.name_snapshot}${item.scheduled_at ? ` (${helpers.formatDateTime(item.scheduled_at)})` : ''}`
+    `- ${item.quantity}× ${item.name_snapshot}${item.variant_label_snapshot ? ` (${item.variant_label_snapshot})` : ''}${item.scheduled_at ? ` (${helpers.formatDateTime(item.scheduled_at)})` : ''}`
   ).join('\n');
   const message = `Hola CASTAMOTO! Quiero coordinar mi pedido *${order.order_number}*:\n${itemsText}\nTotal: ${helpers.formatCurrency(order.total)}`;
 
@@ -70,7 +70,7 @@ async function initOrderConfirmationPage() {
       <div class="summary-box mt-16">
         ${order.items.map((item) => `
           <div class="summary-row">
-            <span>${item.quantity}× ${helpers.escapeHtml(item.name_snapshot)}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
+            <span>${item.quantity}× ${helpers.escapeHtml(item.name_snapshot)}${item.variant_label_snapshot ? ` <br><small style="color:var(--gris-texto);">${helpers.escapeHtml(item.variant_label_snapshot)}</small>` : ''}${item.scheduled_at ? ` <br><small style="color:var(--gris-texto);">📅 ${helpers.formatDateTime(item.scheduled_at)}</small>` : ''}</span>
             <span>${helpers.formatCurrency(item.subtotal)}</span>
           </div>
         `).join('')}

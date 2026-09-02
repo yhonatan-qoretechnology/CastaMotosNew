@@ -19,22 +19,30 @@ final class AddCartItemUseCase
     ) {
     }
 
-    public function handle(int $cartId, ?int $productId, ?int $serviceId, int $quantity, ?string $scheduledAt = null): void
+    public function handle(int $cartId, ?int $productId, ?int $serviceId, int $quantity, ?string $scheduledAt = null, ?array $variantIds = null): void
     {
         if ($productId !== null) {
-            $this->addProduct($cartId, $productId, $quantity, $scheduledAt);
+            $this->addProduct($cartId, $productId, $quantity, $scheduledAt, $variantIds);
             return;
         }
 
         $this->addService($cartId, $serviceId, $quantity, $scheduledAt);
     }
 
-    private function addProduct(int $cartId, int $productId, int $quantity, ?string $scheduledAt): void
+    private function addProduct(int $cartId, int $productId, int $quantity, ?string $scheduledAt, ?array $variantIds): void
     {
         $product = $this->products->find($productId);
         if ($product === null || $product['status'] !== 'active') {
             throw new NotFoundException('Producto no encontrado.');
         }
+
+        // Nunca se confía en el price_modifier que pudiera mandar el cliente:
+        // se valida que cada id sea de verdad una variante de ESTE producto
+        // (product.variants sale de PdoProductRepository::find(), en vivo) y
+        // el ajuste de precio se recalcula acá con el price_modifier real.
+        $variantIds = $this->resolveVariantSelection($product, $variantIds);
+        $priceModifier = $this->variantPriceModifier($product, $variantIds);
+        $unitPrice = (float) $product['price'] + $priceModifier;
 
         // Mismo toggle opcional que ya existe en servicios (ver addService()
         // más abajo) — un producto que requiere agendar (ej. algo que se
@@ -60,7 +68,21 @@ final class AddCartItemUseCase
                 ]);
             }
 
-            $this->carts->addItem($cartId, $productId, null, $quantity, (float) $product['price'], date('Y-m-d H:i:s', $timestamp));
+            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice, date('Y-m-d H:i:s', $timestamp), $variantIds);
+            return;
+        }
+
+        // Una variante elegida (talla, color) nunca se suma a una fila
+        // existente — dos combinaciones distintas ("Talla M" y "Talla L") son
+        // líneas separadas del carrito, igual que un producto agendado.
+        if ($variantIds !== null) {
+            if ($quantity > (int) $product['stock']) {
+                throw new ValidationException('No fue posible agregar el producto.', [
+                    'quantity' => ['La cantidad solicitada supera el stock disponible.'],
+                ]);
+            }
+
+            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice, null, $variantIds);
             return;
         }
 
@@ -76,8 +98,48 @@ final class AddCartItemUseCase
         if ($existing !== null) {
             $this->carts->updateItemQuantity((int) $existing['id'], $newQuantity);
         } else {
-            $this->carts->addItem($cartId, $productId, null, $quantity, (float) $product['price']);
+            $this->carts->addItem($cartId, $productId, null, $quantity, $unitPrice);
         }
+    }
+
+    /**
+     * @param int[]|null $variantIds
+     * @return int[]|null null si no se eligió ninguna variante.
+     */
+    private function resolveVariantSelection(array $product, ?array $variantIds): ?array
+    {
+        if ($variantIds === null || $variantIds === []) {
+            return null;
+        }
+
+        $validIds = array_map('intval', array_column($product['variants'] ?? [], 'id'));
+        $normalized = array_values(array_unique(array_map('intval', $variantIds)));
+
+        foreach ($normalized as $id) {
+            if (!in_array($id, $validIds, true)) {
+                throw new ValidationException('No fue posible agregar el producto.', [
+                    'variant_ids' => ['Una de las variantes elegidas no es válida para este producto.'],
+                ]);
+            }
+        }
+
+        return $normalized;
+    }
+
+    /** @param int[]|null $variantIds */
+    private function variantPriceModifier(array $product, ?array $variantIds): float
+    {
+        if ($variantIds === null) {
+            return 0.0;
+        }
+
+        $modifier = 0.0;
+        foreach ($product['variants'] ?? [] as $variant) {
+            if (in_array((int) $variant['id'], $variantIds, true)) {
+                $modifier += (float) $variant['price_modifier'];
+            }
+        }
+        return $modifier;
     }
 
     /**

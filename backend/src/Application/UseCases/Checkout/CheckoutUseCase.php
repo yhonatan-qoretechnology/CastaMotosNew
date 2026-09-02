@@ -112,6 +112,11 @@ final class CheckoutUseCase
                 'subtotal' => round($item['unit_price'] * $item['quantity'], 2),
                 // Reserva del servicio (sección 12) — null en items de producto.
                 'scheduled_at' => $item['scheduled_at'] ?? null,
+                // Talla/color elegidos — se "congelan" acá igual que name_snapshot/
+                // sku_snapshot: el pedido no debe cambiar si después se edita o
+                // borra la variante en el catálogo (sección 54).
+                'variant_ids' => $item['variant_ids'] ?? null,
+                'variant_label_snapshot' => $item['variant_label'] ?? null,
             ];
         }, $items);
 

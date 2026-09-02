@@ -87,19 +87,57 @@ async function loadProductTimeSlots(product, date) {
   }
 }
 
+/**
+ * Antes esto era un único <select> con TODAS las variantes mezcladas ("Talla
+ * M", "Rojo", "Negro" como si fueran opciones excluyentes entre sí) y el
+ * valor elegido nunca se leía en ningún lado — ni cambiaba el precio ni se
+ * mandaba al carrito (reporte: "falta el ajuste de color/talla al comprar").
+ * Ahora se agrupa por "type" (/admin → Productos → variantes): un <select>
+ * por cada dimensión ("Talla", "Color"), para poder elegir una de cada una a
+ * la vez. Variantes sin "type" (o si ninguna lo tiene) caen todas juntas bajo
+ * un único grupo "Variante" — mismo comportamiento plano que había antes.
+ */
 function variantOptionsMarkup(product) {
   if (!product.variants || product.variants.length === 0) return '';
 
-  const options = product.variants.map((variant) =>
-    `<option value="${variant.price_modifier}">${helpers.escapeHtml(variant.name)}${Number(variant.price_modifier) > 0 ? ` (+${helpers.formatCurrency(variant.price_modifier)})` : ''}</option>`
-  ).join('');
+  const groups = [];
+  const indexByLabel = new Map();
+  product.variants.forEach((variant) => {
+    const label = (variant.type || '').trim() || 'Variante';
+    if (!indexByLabel.has(label)) {
+      indexByLabel.set(label, groups.length);
+      groups.push({ label, variants: [] });
+    }
+    groups[indexByLabel.get(label)].variants.push(variant);
+  });
 
-  return `
+  return groups.map((group, index) => `
     <div class="form-group">
-      <label for="variant-select">Variante</label>
-      <select class="form-control" id="variant-select">${options}</select>
+      <label for="variant-select-${index}">${helpers.escapeHtml(group.label)}</label>
+      <select class="form-control variant-select" id="variant-select-${index}">
+        ${group.variants.map((variant) => {
+          const modifier = Number(variant.price_modifier) || 0;
+          const modifierLabel = modifier !== 0 ? ` (${modifier > 0 ? '+' : ''}${helpers.formatCurrency(modifier)})` : '';
+          return `<option value="${variant.id}" data-price-modifier="${modifier}">${helpers.escapeHtml(variant.name)}${modifierLabel}</option>`;
+        }).join('')}
+      </select>
     </div>
-  `;
+  `).join('');
+}
+
+/** Ids de las variantes elegidas ahora mismo (uno por grupo/tipo), o null si el producto no tiene variantes. */
+function selectedVariantIds() {
+  const selects = document.querySelectorAll('.variant-select');
+  if (selects.length === 0) return null;
+  return Array.from(selects).map((select) => Number(select.value));
+}
+
+/** Suma del ajuste de precio de cada variante elegida ahora mismo. */
+function selectedVariantPriceAdjustment() {
+  return Array.from(document.querySelectorAll('.variant-select')).reduce((total, select) => {
+    const option = select.options[select.selectedIndex];
+    return total + (option ? Number(option.dataset.priceModifier) || 0 : 0);
+  }, 0);
 }
 
 /**
@@ -239,7 +277,7 @@ function renderProductDetail(product) {
         <div class="purchase-box mt-16">
           <span class="badge badge-${stockStatus}">${stockLabel}</span>
           <p style="font-size:1.8rem;font-weight:800;color:var(--amarillo);margin:12px 0 4px;">
-            ${helpers.formatCurrency(product.price)}
+            <span id="product-current-price">${helpers.formatCurrency(product.price)}</span>
             ${hasDiscount ? `<span class="card__price-old" style="font-size:1rem;">${helpers.formatCurrency(product.previous_price)}</span>` : ''}
           </p>
           ${product.short_description ? `<p style="color:var(--gris-texto);">${helpers.escapeHtml(product.short_description)}</p>` : ''}
@@ -309,6 +347,16 @@ function wireProductDetailEvents(product) {
     event.target.remove();
   });
 
+  // El precio mostrado arriba ahora refleja la variante elegida (antes era
+  // fijo, sin importar qué se seleccionara en el desplegable — el ajuste de
+  // precio nunca se veía reflejado en ningún lado).
+  document.querySelectorAll('.variant-select').forEach((select) => {
+    select.addEventListener('change', () => {
+      const priceEl = document.getElementById('product-current-price');
+      if (priceEl) priceEl.textContent = helpers.formatCurrency(Number(product.price) + selectedVariantPriceAdjustment());
+    });
+  });
+
   if (productRequiresScheduling(product) && !authService.isAuthenticated()) {
     // purchaseActionMarkup() ya reemplazó cantidad/botón por este botón de
     // login — ni #product-reservation-date ni #add-to-cart-btn existen acá.
@@ -332,7 +380,7 @@ function wireProductDetailEvents(product) {
       }
 
       try {
-        await cartService.addItem({ product_id: product.id, quantity, scheduled_at: `${date} ${selectedProductReservationTime}:00` });
+        await cartService.addItem({ product_id: product.id, quantity, scheduled_at: `${date} ${selectedProductReservationTime}:00`, variant_ids: selectedVariantIds() });
         helpers.toast('Producto agendado y agregado al carrito.', 'success');
         refreshCartBadge();
       } catch (error) {
@@ -342,17 +390,20 @@ function wireProductDetailEvents(product) {
   } else {
     document.getElementById('add-to-cart-btn')?.addEventListener('click', async () => {
       const quantity = Number(document.getElementById('add-quantity').value) || 1;
+      const variantIds = selectedVariantIds();
       try {
         // Si ya está en el carrito, se lo avisa en vez de sumarlo en silencio
         // — el backend igual lo suma a la misma fila (nunca lo duplica), esto
         // es solo para que no se lleve una sorpresa con la cantidad final.
+        // Con variantes elegidas no aplica: cada combinación (ej. "Talla M" vs
+        // "Talla L") es su propia fila siempre, nunca se fusionan entre sí.
         const cart = await cartService.get();
-        const existing = cart.items.find((item) => item.type === 'product' && item.reference_id === product.id);
+        const existing = !variantIds && cart.items.find((item) => item.type === 'product' && item.reference_id === product.id);
         if (existing && !window.confirm(`Ya tenés ${existing.quantity} de "${product.name}" en tu carrito. ¿Agregar ${quantity} más?`)) {
           return;
         }
 
-        await cartService.addItem({ product_id: product.id, quantity });
+        await cartService.addItem({ product_id: product.id, quantity, variant_ids: variantIds });
         helpers.toast('Producto agregado al carrito.', 'success');
         refreshCartBadge();
       } catch (error) {

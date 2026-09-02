@@ -19,6 +19,10 @@ final class CorsMiddleware
         header('Access-Control-Allow-Origin: ' . $allowedOrigins);
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization');
-        header('Access-Control-Allow-Credentials: true');
+        // Sin "Allow-Credentials: true" a propósito (auditoría de seguridad):
+        // el sitio no usa cookies para nada (la sesión es un Bearer token en
+        // localStorage, que el navegador nunca manda solo por sí mismo), así
+        // que este header no protegía nada — y combinado con el "*" de arriba
+        // era además una combinación que el propio navegador rechaza por spec.
     }
 }

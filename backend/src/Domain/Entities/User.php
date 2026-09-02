@@ -25,6 +25,10 @@ final class User
         public ?string $emailVerifiedAt,
         public int $failedLoginAttempts,
         public ?string $lockedUntil,
+        // NULL en cuentas de antes de esta columna (sección seguridad) — sin
+        // restricción para ellas. AuthMiddleware la usa para invalidar
+        // cualquier JWT emitido antes del último cambio de contraseña.
+        public ?string $passwordChangedAt = null,
         /** @var string[] Nombres de los roles asignados. */
         public array $roles = []
     ) {

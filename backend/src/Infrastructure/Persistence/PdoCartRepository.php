@@ -76,7 +76,7 @@ final class PdoCartRepository implements CartRepositoryInterface
     public function itemsWithLiveData(int $cartId): array
     {
         $stmt = $this->connection->prepare(
-            'SELECT ci.id, ci.product_id, ci.service_id, ci.scheduled_at, ci.quantity, ci.unit_price_snapshot,
+            'SELECT ci.id, ci.product_id, ci.service_id, ci.scheduled_at, ci.variant_ids, ci.quantity, ci.unit_price_snapshot,
                     p.name AS product_name, p.slug AS product_slug, p.price AS product_price, p.sku AS product_sku,
                     p.stock AS product_stock, p.status AS product_status, p.shipping_cost AS product_shipping_cost,
                     p.discount_percentage AS product_discount, p.tax_rate AS product_tax,
@@ -93,11 +93,39 @@ final class PdoCartRepository implements CartRepositoryInterface
              ORDER BY ci.id ASC'
         );
         $stmt->execute(['cart_id' => $cartId]);
+        $rows = $stmt->fetchAll();
 
-        return array_map([$this, 'normalizeItem'], $stmt->fetchAll());
+        // Nombre/ajuste de precio de cada variante elegida, en UNA sola consulta
+        // para todo el carrito (no una por línea) — ver resolveVariantsByIds().
+        $variantIds = [];
+        foreach ($rows as $row) {
+            foreach (json_decode($row['variant_ids'] ?? '', true) ?: [] as $id) {
+                $variantIds[(int) $id] = true;
+            }
+        }
+        $variantsById = $variantIds ? $this->resolveVariantsByIds(array_keys($variantIds)) : [];
+
+        return array_map(fn (array $row) => $this->normalizeItem($row, $variantsById), $rows);
     }
 
-    private function normalizeItem(array $row): array
+    /** @return array<int, array{name: string, price_modifier: float}> */
+    private function resolveVariantsByIds(array $ids): array
+    {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->connection->prepare(
+            "SELECT id, name, price_modifier FROM product_variants WHERE id IN ({$placeholders})"
+        );
+        $stmt->execute($ids);
+
+        $result = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $result[(int) $row['id']] = ['name' => $row['name'], 'price_modifier' => (float) $row['price_modifier']];
+        }
+        return $result;
+    }
+
+    /** @param array<int, array{name: string, price_modifier: float}> $variantsById */
+    private function normalizeItem(array $row, array $variantsById = []): array
     {
         $isProduct = $row['product_id'] !== null;
         $quantity = (int) $row['quantity'];
@@ -105,7 +133,21 @@ final class PdoCartRepository implements CartRepositoryInterface
         $available = $isProduct ? $row['product_status'] === 'active' : $row['service_status'] === 'active';
         $name = $isProduct ? $row['product_name'] : $row['service_name'];
 
-        $unitPrice = $available ? (float) ($isProduct ? $row['product_price'] : $row['service_price']) : 0.0;
+        // Talla/color elegidos para esta línea (solo aplica a productos, ver
+        // AddCartItemUseCase::addProduct()) — el ajuste de precio de cada
+        // variante se suma al precio base, y el nombre se junta en una sola
+        // etiqueta ("Talla M, Rojo") para mostrar en carrito/checkout.
+        $selectedVariantIds = json_decode($row['variant_ids'] ?? '', true) ?: [];
+        $variantAdjustment = 0.0;
+        $variantNames = [];
+        foreach ($selectedVariantIds as $variantId) {
+            if (isset($variantsById[(int) $variantId])) {
+                $variantAdjustment += $variantsById[(int) $variantId]['price_modifier'];
+                $variantNames[] = $variantsById[(int) $variantId]['name'];
+            }
+        }
+
+        $unitPrice = $available ? (float) ($isProduct ? $row['product_price'] : $row['service_price']) + $variantAdjustment : 0.0;
         $availableStock = $isProduct && $available ? (int) $row['product_stock'] : null;
 
         return [
@@ -126,6 +168,8 @@ final class PdoCartRepository implements CartRepositoryInterface
             'quantity_exceeds_stock' => $availableStock !== null && $quantity > $availableStock,
             // Reserva (sección 12) o, ahora también, producto agendado (mismo mecanismo) — null si no aplica.
             'scheduled_at' => $row['scheduled_at'] ?? null,
+            'variant_ids' => $selectedVariantIds ?: null,
+            'variant_label' => $variantNames ? implode(', ', $variantNames) : null,
             'requires_scheduling' => $isProduct
                 ? (int) ($row['product_requires_scheduling'] ?? 0) === 1
                 : (int) ($row['service_requires_scheduling'] ?? 1) === 1,
@@ -172,17 +216,18 @@ final class PdoCartRepository implements CartRepositoryInterface
         return $row ?: null;
     }
 
-    public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null): int
+    public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null, ?array $variantIds = null): int
     {
         $stmt = $this->connection->prepare(
-            'INSERT INTO cart_items (cart_id, product_id, service_id, scheduled_at, quantity, unit_price_snapshot)
-             VALUES (:cart_id, :product_id, :service_id, :scheduled_at, :quantity, :unit_price_snapshot)'
+            'INSERT INTO cart_items (cart_id, product_id, service_id, scheduled_at, variant_ids, quantity, unit_price_snapshot)
+             VALUES (:cart_id, :product_id, :service_id, :scheduled_at, :variant_ids, :quantity, :unit_price_snapshot)'
         );
         $stmt->execute([
             'cart_id' => $cartId,
             'product_id' => $productId,
             'service_id' => $serviceId,
             'scheduled_at' => $scheduledAt,
+            'variant_ids' => $variantIds ? json_encode(array_values($variantIds)) : null,
             'quantity' => $quantity,
             'unit_price_snapshot' => $unitPriceSnapshot,
         ]);
@@ -244,11 +289,20 @@ final class PdoCartRepository implements CartRepositoryInterface
             $guestItems->execute(['cart_id' => $guestCart['id']]);
 
             foreach ($guestItems->fetchAll() as $item) {
-                $existing = $this->findExistingItem(
-                    (int) $userCart['id'],
-                    $item['product_id'] !== null ? (int) $item['product_id'] : null,
-                    $item['service_id'] !== null ? (int) $item['service_id'] : null
-                );
+                $variantIds = json_decode($item['variant_ids'] ?? '', true) ?: null;
+                // Mismo criterio que AddCartItemUseCase: una reserva (scheduled_at)
+                // o una variante elegida (talla/color) nunca se suma a una fila
+                // existente — cada una queda como su propia línea, aunque sea el
+                // mismo producto/servicio. Sin esto, fusionar el carrito de
+                // invitado con el de la cuenta podía mezclar dos elecciones
+                // distintas en una sola fila y perder una de las dos en silencio.
+                $existing = ($item['scheduled_at'] === null && $variantIds === null)
+                    ? $this->findExistingItem(
+                        (int) $userCart['id'],
+                        $item['product_id'] !== null ? (int) $item['product_id'] : null,
+                        $item['service_id'] !== null ? (int) $item['service_id'] : null
+                    )
+                    : null;
 
                 if ($existing !== null) {
                     $this->updateItemQuantity((int) $existing['id'], (int) $existing['quantity'] + (int) $item['quantity']);
@@ -258,7 +312,9 @@ final class PdoCartRepository implements CartRepositoryInterface
                         $item['product_id'] !== null ? (int) $item['product_id'] : null,
                         $item['service_id'] !== null ? (int) $item['service_id'] : null,
                         (int) $item['quantity'],
-                        (float) $item['unit_price_snapshot']
+                        (float) $item['unit_price_snapshot'],
+                        $item['scheduled_at'],
+                        $variantIds
                     );
                 }
             }

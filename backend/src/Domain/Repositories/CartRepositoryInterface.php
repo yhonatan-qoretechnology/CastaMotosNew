@@ -32,7 +32,8 @@ interface CartRepositoryInterface
      */
     public function findExistingItem(int $cartId, ?int $productId, ?int $serviceId): ?array;
 
-    public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null): int;
+    /** @param int[]|null $variantIds ids de product_variants elegidos para esta línea (talla/color/etc.) */
+    public function addItem(int $cartId, ?int $productId, ?int $serviceId, int $quantity, float $unitPriceSnapshot, ?string $scheduledAt = null, ?array $variantIds = null): int;
 
     public function updateItemQuantity(int $itemId, int $quantity): void;
 

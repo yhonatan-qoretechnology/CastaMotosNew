@@ -41,6 +41,15 @@ final class AuthMiddleware implements Middleware
             throw new UnauthorizedException('Sesión inválida.');
         }
 
+        // Revocación de sesión al cambiar/resetear la contraseña (sección
+        // seguridad): un JWT emitido ANTES del último cambio de contraseña ya
+        // no sirve, aunque todavía no haya expirado por su cuenta — evita que
+        // un token robado/filtrado siga funcionando después de que el dueño
+        // de la cuenta cambia la clave creyendo que así queda a salvo.
+        if ($user->passwordChangedAt !== null && ($claims['iat'] ?? 0) < strtotime($user->passwordChangedAt)) {
+            throw new UnauthorizedException('La sesión expiró. Inicia sesión nuevamente.');
+        }
+
         return $request->withAttribute('auth_user', $user);
     }
 }
